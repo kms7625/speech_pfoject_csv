@@ -5,7 +5,10 @@
              getQuestions,
              submitAnswers,
              generateTTS,
-             deleteChild} from '$lib/api.js'
+             deleteChild,
+             saveDraft,
+             loadDraft,
+             deleteDraft} from '$lib/api.js'
 
     // 상태 변수들
     let children = $state([]);        // 등록 아동 목록
@@ -34,6 +37,9 @@
     let silenceTimer = $state(null);
     // 녹음 처리 시간 초과 관련
     let sttTimer = $state(null)
+    // 임시저장 관련
+    let draftSavedAt = $state(null);  // 마지막 저장 시각 표시
+    let autoSaveTimer = $state(null); // 자동저장 타이머
     // 미답변 문항 번호 관련
     let unanswered = $derived(
         questions
@@ -220,12 +226,35 @@ function speak(text) {
     }
 
     // 동의 완료 후 검사 시작
-    function startChecklist(child) {
-        selectedChild = child;
+    async function startChecklist() {
         answers = {};
         result = null;
         startTime = Date.now(); // 검사 시작 시간 기록
         phase = 'checklist';
+
+        // 기존 임시저장 있으면 불러오기
+        const res = await loadDraft(selectedChild.id);
+        if (res.draft) {
+            res.draft.answers.forEach(a => {
+                answers[a.question_id] = a.value;
+            });
+            draftSavedAt = res.draft.saved_at;
+        }
+    }
+
+    // 현재 답변 임시저장
+    async function saveCurrentDraft() {
+        const answerList = Object.entries(answers)
+            .map(([qid, val]) => ({
+                question_id: parseInt(qid),
+                value: val
+            }));
+        if (answerList.length === 0) return;
+
+        const res = await saveDraft(selectedChild.id, answerList);
+        if (res.status === 'success') {
+            draftSavedAt = res.saved_at;
+        }
     }
 
     // 답변 제출
@@ -240,6 +269,10 @@ function speak(text) {
         const responseTime = (Date.now() - startTime) / 1000;
 
         const res = await submitAnswers(selectedChild.id, answerList, responseTime);
+        // 제출 완료 시 임시저장 삭제 + 타이머 정리
+        clearInterval(autoSaveTimer);
+        await deleteDraft(selectedChild.id);
+
         result = res;
         phase = 'result';
     }
@@ -377,7 +410,10 @@ function speak(text) {
                                 name="q{q.id}"
                                 value={opt.value}
                                 checked={answers[q.id] === opt.value}
-                                onchange={() => answers[q.id] = Number(opt.value)}
+                                onchange={async () => {
+                                  answers[q.id] = Number(opt.value);
+                                  await saveCurrentDraft();
+                                }}
                             />
                             {opt.text}
                         </label>

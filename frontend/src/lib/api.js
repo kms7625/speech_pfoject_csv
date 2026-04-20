@@ -40,3 +40,15 @@ export const generateTTS = (text, speed = 1.0) =>
     request('POST',
         '/tts/generate',
         { text, speed });
+
+// 임시저장
+export const saveDraft = (child_id, answers) =>
+    request('POST', '/score/draft/save', { child_id, answers });
+
+// 불러오기
+export const loadDraft = (child_id) =>
+    request('GET', `/score/draft/${child_id}`);
+
+// 삭제
+export const deleteDraft = (child_id) =>
+    request('DELETE', `/score/draft/${child_id}`);

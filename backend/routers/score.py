@@ -8,6 +8,8 @@ from pydantic import BaseModel
 router = APIRouter(prefix="/api/score")
 
 DATA_PATH = Path(__file__).parent.parent / "data" / "responses.csv"
+# 임시저장 파일 경로
+DRAFT_PATH = Path(__file__).parent.parent / "data" / "drafts.csv"
 
 # 답변 1개의 형태 정의
 class Answer(BaseModel):
@@ -117,3 +119,80 @@ def get_all_responses():
         rows = list(reader)
 
     return {"status": "success", "data": rows}
+
+# 임시저장할 데이터 형태
+class DraftRequest(BaseModel):
+    child_id: str
+    answers: list[Answer]  # 지금까지 답변한 것만
+
+# 임시저장
+@router.post("/draft/save")
+def save_draft(body: DraftRequest):
+    DRAFT_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    # 기존 drafts에서 이 아동 것 제거 후 새로 저장
+    existing = []
+    if DRAFT_PATH.exists() and DRAFT_PATH.stat().st_size > 0:
+        with open(DRAFT_PATH, encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            # 같은 child_id 것만 제거
+            existing = [r for r in reader if r["child_id"] != body.child_id]
+
+    # 답변을 JSON 문자열로 직렬화해서 1행으로 저장
+    import json
+    row = {
+        "child_id": body.child_id,
+        "answers": json.dumps([{"question_id": a.question_id, "value": a.value}
+                                for a in body.answers]),
+        "saved_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    existing.append(row)
+
+    fieldnames = ["child_id", "answers", "saved_at"]
+    with open(DRAFT_PATH, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(existing)
+
+    return {"status": "success", "saved_at": row["saved_at"]}
+
+# 임시저장 불러오기
+@router.get("/draft/{child_id}")
+def load_draft(child_id: str):
+    if not DRAFT_PATH.exists():
+        return {"status": "success", "draft": None}
+
+    import json
+    with open(DRAFT_PATH, encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if row["child_id"] == child_id:
+                # JSON 문자열을 다시 리스트로 변환
+                answers = json.loads(row["answers"])
+                return {
+                    "status": "success",
+                    "draft": {
+                        "answers": answers,
+                        "saved_at": row["saved_at"]
+                    }
+                }
+
+    return {"status": "success", "draft": None}
+
+# 임시저장 삭제 (제출 완료 후 호출)
+@router.delete("/draft/{child_id}")
+def delete_draft(child_id: str):
+    if not DRAFT_PATH.exists():
+        return {"status": "success"}
+
+    with open(DRAFT_PATH, encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        rows = [r for r in reader if r["child_id"] != child_id]
+
+    fieldnames = ["child_id", "answers", "saved_at"]
+    with open(DRAFT_PATH, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    return {"status": "success"}
