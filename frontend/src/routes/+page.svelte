@@ -53,6 +53,19 @@
     let ttsSpeed = $state(1.0);
     // 관리자 조회
     let adminData = $state([]);
+    // 펼쳐진 행 추적(response_id 저장)
+    let expandedRows = $state(new Set());
+
+    // 행 펼치기/접기
+    function toggleRow(id) {
+        const next = new Set(expandedRows);
+        if (next.has(id)) {
+            next.delete(id);
+        } else {
+            next.add(id);
+        }
+        expandedRows = next;
+    }
 
 
     // 녹음 시작/중지 토글
@@ -471,6 +484,7 @@ function speak(text) {
                 <table class="admin-table">
                     <thead>
                         <tr>
+                            <th></th>
                             <th>response_id</th>
                             <th>이름</th>
                             <th>나이</th>
@@ -484,7 +498,14 @@ function speak(text) {
                     </thead>
                     <tbody>
                         {#each adminData as row}
+                            <!-- 기본 행 -->
                             <tr>
+                                <td>
+                                    <button class="expand-btn"
+                                        onclick={() => toggleRow(row.response_id)}>
+                                        {expandedRows.has(row.response_id) ? '▲' : '▼'}
+                                    </button>
+                                </td>
                                 <td>{row.response_id}</td>
                                 <td>{row.name}</td>
                                 <td>{row.age}</td>
@@ -495,6 +516,21 @@ function speak(text) {
                                 <td>{row.response_time}</td>
                                 <td>{row.recorded_at}</td>
                             </tr>
+                            <!-- 펼쳐지는 문항별 응답 행 -->
+                            {#if expandedRows.has(row.response_id)}
+                                <tr class="expand-row">
+                                    <td colspan="10">
+                                        <div class="expand-grid">
+                                            {#each Array.from({length: 20}, (_, i) => i + 1) as n}
+                                                <div class="expand-cell">
+                                                    <span class="q-label">Q{n}</span>
+                                                    <span class="q-value">{row[`q${n}`] ?? '-'}</span>
+                                                </div>
+                                            {/each}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {/if}
                         {/each}
                     </tbody>
                 </table>
@@ -691,5 +727,33 @@ select:focus { border-color: #6366f1; }
 }
 .admin-table tr:hover td {
     background: #f1f5f9;
+}
+
+/* 펼쳐지는 문항별 응답 행 */
+.expand-btn {
+    padding: 4px 8px; font-size: 0.8em;
+    background: #e2e8f0; color: #475569;
+    border-radius: 6px; margin: 0;
+}
+.expand-btn:hover { background: #cbd5e1; transform: none; box-shadow: none; }
+
+.expand-row td { background: #f8fafc; padding: 16px 12px; }
+
+.expand-grid {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 8px;
+}
+.expand-cell {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 4px;
+    background: #fff; border: 1px solid #e2e8f0;
+    border-radius: 8px; padding: 8px;
+}
+.q-label {
+    font-size: 0.75em; color: #94a3b8; font-weight: 600;
+}
+.q-value {
+    font-size: 1.1em; font-weight: 700; color: #6366f1;
 }
 </style>
