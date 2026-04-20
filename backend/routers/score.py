@@ -117,9 +117,26 @@ def get_all_responses():
     if not DATA_PATH.exists():
         return {"status": "success", "data":[]}
 
+    # children.csv 읽어서 id 기준으로 매핑
+    children_path = Path(__file__).parent.parent / "data" / "children.csv"
+    child_map = {}
+    if children_path.exists():
+        with open(children_path, encoding="utf-8-sig") as f:
+            for c in csv.DictReader(f):
+                child_map[c["id"]] = {
+                    "name": c["name"],
+                    "age": c["age"],
+                    "gender": c["gender"]
+                }
+    # responses.csv 읽고 아동 정보 합치기
     with open(DATA_PATH, encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        rows = list(reader)
+        rows = []
+        for row in csv.DictReader(f):
+            info = child_map.get(row["child_id"], {})
+            row["name"]   = info.get("name", "알 수 없음")
+            row["age"]    = info.get("age", "-")
+            row["gender"] = info.get("gender", "-")
+            rows.append(row)
 
     return {"status": "success", "data": rows}
 
