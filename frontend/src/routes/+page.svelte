@@ -42,6 +42,8 @@
     );
     // 개인정보 동의 체크박스 상태
     let consentChecked = $state(false);
+    // tts 재생 속도(0.5 ~ 2.0)
+    let ttsSpeed = $state(1.0);
 
 
     // 녹음 시작/중지 토글
@@ -161,10 +163,11 @@ function speak(text) {
 */
     async function speak(text, question = null) {
     try {
-        const res = await generateTTS(text);
+        const res = await generateTTS(text, ttsSpeed);
         if (res && res.status === 'success') {
             const audio = new Audio(`http://localhost:8000/api/tts/file/${res.filename}`);
-
+            // 재생 속도 적용
+            audio.playbackRate = ttsSpeed;
             // 음성 재생 끝나면 자동 녹음 시작
             audio.onended = async () => {
                 if (question) {
@@ -336,6 +339,24 @@ function speak(text) {
 {:else if phase === 'checklist'}
     <div class="card">
         <h2>{selectedChild.name} 검사</h2>
+
+        <!-- TTS 속도 조절 -->
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <span style="font-size: 0.95em; color: #475569; white-space: nowrap;">
+                🔊 재생 속도
+            </span>
+            <input
+                type="range"
+                min="0.5"
+                max="2.0"
+                step="0.1"
+                bind:value={ttsSpeed}
+                style="flex: 1;"
+            />
+            <span style="font-size: 0.95em; color: #6366f1; font-weight: 700; width: 36px;">
+                {ttsSpeed}x
+            </span>
+        </div>
 
         <div class="progress-bar">
             <div class="progress-fill"

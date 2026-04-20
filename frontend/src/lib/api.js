@@ -36,7 +36,7 @@ export const getHistory = (child_id) =>
     request('GET', `/score/history/${child_id}`);
 
 // TTS 관련
-export const generateTTS = (text) =>
+export const generateTTS = (text, speed = 1.0) =>
     request('POST',
         '/tts/generate',
-        { text });
+        { text, speed });
