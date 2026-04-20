@@ -295,6 +295,7 @@ function speak(text) {
     // 현재 답변 임시저장
     async function saveCurrentDraft() {
         const answerList = Object.entries(answers)
+            .filter(([qid, val]) => val !== undefined)
             .map(([qid, val]) => ({
                 question_id: parseInt(qid),
                 value: val

@@ -1,15 +1,12 @@
-import csv
-import uuid
-from datetime import datetime
-from pathlib import Path
 from fastapi import APIRouter
 from pydantic import BaseModel
+from services.score_service import (
+    calc_score, save_response, get_history,
+    get_all_responses, save_draft, load_draft, delete_draft,
+    delete_responses
+)
 
 router = APIRouter(prefix="/api/score")
-
-DATA_PATH = Path(__file__).parent.parent / "data" / "responses.csv"
-# 임시저장 파일 경로
-DRAFT_PATH = Path(__file__).parent.parent / "data" / "drafts.csv"
 
 # 답변 1개의 형태 정의
 class Answer(BaseModel):
@@ -22,53 +19,14 @@ class ScoreRequest(BaseModel):
     answers: list[Answer]
     response_time: float
 
-def calc_score(answers: list[Answer]) -> dict:
-    # 1~9번 : 부주의 점수
-    inattention = sum(a.value for a in answers
-                      if 1 <= a.question_id <= 9)
-    # 10~18번 : 과잉행동/충동성 점수
-    hyperactivity = sum(a.value for a in answers
-                        if 10 <= a.question_id <= 18)
-    # 19~20번은 총점에만 포함
-    total = sum(a.value for a in answers)
+# 임시저장할 데이터 형태
+class DraftRequest(BaseModel):
+    child_id: str
+    answers: list[Answer]  # 지금까지 답변한 것만
 
-    return {
-        "inattention": inattention,     # 부주의(0~27)
-        "hyperactivity": hyperactivity, # 과잉행동(0~27)
-        "total": total                  # 총점(0~54)
-    }
-
-def save_response(child_id: str, scores: dict, response_time: float, answers: list) -> str:
-    DATA_PATH.parent.mkdir(parents=True,
-                           exist_ok=True)
-
-    response_id = str(uuid.uuid4())[:8]
-    row = {
-        "response_id": response_id,
-        "child_id": child_id,
-        "inattention": scores["inattention"],
-        "hyperactivity": scores["hyperactivity"],
-        "total": scores["total"],
-        "response_time": round(response_time, 2), # 초 단위
-        "recorded_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    # 1~20 각 문항 답변 개별 컬럼으로 저장
-    for a in answers:
-        row[f"q{a.question_id}"] = a.value
-
-    fieldnames = list(row.keys())
-    # 파일이 없거나 비어있으면 헤더 작성
-    write_header = not DATA_PATH.exists() or DATA_PATH.stat().st_size == 0
-
-    with open(DATA_PATH, "a",
-              newline="",
-              encoding="utf-8-sig") as f:
-        writer = csv.DictWriter(f, fieldnames=list(row.keys()))
-        if write_header:
-            writer.writeheader()
-        writer.writerow(row)
-
-    return response_id
+# 일괄 삭제 요청 형태
+class DeleteRequest(BaseModel):
+    response_ids: list[str]
 
 @router.post("/submit")
 def submit_answers(body: ScoreRequest):
@@ -88,7 +46,10 @@ def submit_answers(body: ScoreRequest):
             }
 
     scores = calc_score(body.answers)
-    response_id = save_response(body.child_id, scores, body.response_time, body.answers)
+    response_id = save_response(body.child_id,
+                                scores,
+                                body.response_time,
+                                body.answers)
 
     return {
         "status": "success",
@@ -100,143 +61,40 @@ def submit_answers(body: ScoreRequest):
         }
     }
 
+# 특정 아동의 과거 검사 결과 전체 조회
 @router.get("/history/{child_id}")
-def get_history(child_id: str):
-    # 특정 아동의 과거 검사 결과 전체 조회
-    if not DATA_PATH.exists():
-        return {"status": "success", "history": []}
+def get_child_history(child_id: str):
+   return {"status": "success",
+           "history": get_history(child_id)}
 
-    with open(DATA_PATH, encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        history = [row for row in reader if row["child_id"] == child_id]
-
-    return {"status": "success", "history": history}
-
+# 전체 응답 조회(관리자용)
 @router.get("/admin/all")
-def get_all_responses():
-    if not DATA_PATH.exists():
-        return {"status": "success", "data":[]}
+def get_all():
+    return {"status": "success",
+            "data": get_all_responses()}
 
-    # children.csv 읽어서 id 기준으로 매핑
-    children_path = Path(__file__).parent.parent / "data" / "children.csv"
-    child_map = {}
-    if children_path.exists():
-        with open(children_path, encoding="utf-8-sig") as f:
-            for c in csv.DictReader(f):
-                child_map[c["id"]] = {
-                    "name": c["name"],
-                    "age": c["age"],
-                    "gender": c["gender"]
-                }
-    # responses.csv 읽고 아동 정보 합치기
-    with open(DATA_PATH, encoding="utf-8-sig") as f:
-        rows = []
-        for row in csv.DictReader(f):
-            info = child_map.get(row["child_id"], {})
-            row["name"]   = info.get("name", "알 수 없음")
-            row["age"]    = info.get("age", "-")
-            row["gender"] = info.get("gender", "-")
-            rows.append(row)
-
-    return {"status": "success", "data": rows}
-
-# 임시저장할 데이터 형태
-class DraftRequest(BaseModel):
-    child_id: str
-    answers: list[Answer]  # 지금까지 답변한 것만
+# 선택 응답 일괄 삭제(관리자용)
+@router.delete("/admin/delete")
+def delete_selected(body: DeleteRequest):
+    delete_responses(body.response_ids)
+    return {"status": "success",
+            "deleted": len(body.response_ids)}
 
 # 임시저장
 @router.post("/draft/save")
-def save_draft(body: DraftRequest):
-    DRAFT_PATH.parent.mkdir(parents=True, exist_ok=True)
-
-    # 기존 drafts에서 이 아동 것 제거 후 새로 저장
-    existing = []
-    if DRAFT_PATH.exists() and DRAFT_PATH.stat().st_size > 0:
-        with open(DRAFT_PATH, encoding="utf-8-sig") as f:
-            reader = csv.DictReader(f)
-            # 같은 child_id 것만 제거
-            existing = [r for r in reader if r["child_id"] != body.child_id]
-
-    # 답변을 JSON 문자열로 직렬화해서 1행으로 저장
-    import json
-    row = {
-        "child_id": body.child_id,
-        "answers": json.dumps([{"question_id": a.question_id, "value": a.value}
-                                for a in body.answers]),
-        "saved_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    existing.append(row)
-
-    fieldnames = ["child_id", "answers", "saved_at"]
-    with open(DRAFT_PATH, "w", newline="", encoding="utf-8-sig") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(existing)
-
-    return {"status": "success", "saved_at": row["saved_at"]}
+def draft_save(body: DraftRequest):
+    saved_at = save_draft(body.child_id, body.answers)
+    return {"status": "success",
+           "saved_at": saved_at}
 
 # 임시저장 불러오기
 @router.get("/draft/{child_id}")
-def load_draft(child_id: str):
-    if not DRAFT_PATH.exists():
-        return {"status": "success", "draft": None}
-
-    import json
-    with open(DRAFT_PATH, encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            if row["child_id"] == child_id:
-                # JSON 문자열을 다시 리스트로 변환
-                answers = json.loads(row["answers"])
-                return {
-                    "status": "success",
-                    "draft": {
-                        "answers": answers,
-                        "saved_at": row["saved_at"]
-                    }
-                }
-
-    return {"status": "success", "draft": None}
+def draft_load(child_id: str):
+    draft = load_draft(child_id)
+    return {"status": "success", "draft": draft}
 
 # 임시저장 삭제 (제출 완료 후 호출)
 @router.delete("/draft/{child_id}")
-def delete_draft(child_id: str):
-    if not DRAFT_PATH.exists():
-        return {"status": "success"}
-
-    with open(DRAFT_PATH, encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        rows = [r for r in reader if r["child_id"] != child_id]
-
-    fieldnames = ["child_id", "answers", "saved_at"]
-    with open(DRAFT_PATH, "w", newline="", encoding="utf-8-sig") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
-
+def draft_delete(child_id: str):
+    delete_draft(child_id)
     return {"status": "success"}
-
-# 일괄 삭제 요청 형태
-class DeleteRequest(BaseModel):
-    response_ids: list[str]
-
-@router.delete("/admin/delete")
-def delete_responses(body: DeleteRequest):
-    if not DATA_PATH.exists():
-        return {"status": "success"}
-
-    with open(DATA_PATH, encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        # 선택된 id 제외하고 나머지만 유지
-        rows = [r for r in reader
-                if r["response_id"] not in body.response_ids]
-        fieldnames = reader.fieldnames
-
-    with open(DATA_PATH, "w", newline="", encoding="utf-8-sig") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(rows)
-
-    return {"status": "success",
-            "deleted": len(body.response_ids)}
