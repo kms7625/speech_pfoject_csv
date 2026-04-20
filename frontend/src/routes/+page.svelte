@@ -8,7 +8,8 @@
              deleteChild,
              saveDraft,
              loadDraft,
-             deleteDraft} from '$lib/api.js'
+             deleteDraft,
+             getAllResponses} from '$lib/api.js'
 
     // 상태 변수들
     let children = $state([]);        // 등록 아동 목록
@@ -50,6 +51,8 @@
     let consentChecked = $state(false);
     // tts 재생 속도(0.5 ~ 2.0)
     let ttsSpeed = $state(1.0);
+    // 관리자 조회
+    let adminData = $state([]);
 
 
     // 녹음 시작/중지 토글
@@ -308,6 +311,13 @@ function speak(text) {
 {#if phase === 'select'}
     <div class="card">
         <h1>🧠 ADHD 체크리스트</h1>
+        <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+            <button onclick={async () => {
+                const res = await getAllResponses();
+                adminData = res.data;
+                phase = 'admin';
+            }}>🔧 관리자</button>
+        </div>
 
         <h2>아동 등록</h2>
         <input bind:value={newName} placeholder="이름" type="text" />
@@ -446,6 +456,51 @@ function speak(text) {
                 미답변 문항: {unanswered.join(', ')}번
             </p>
         {/if}
+        <button onclick={() => phase = 'select'}>돌아가기</button>
+    </div>
+
+<!-- 관리자 화면 -->
+{:else if phase === 'admin'}
+    <div class="card">
+        <h2>🔧 전체 응답 조회</h2>
+
+        {#if adminData.length === 0}
+            <p>저장된 응답이 없습니다.</p>
+        {:else}
+            <div style="overflow-x: auto;">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>response_id</th>
+                            <th>이름</th>
+                            <th>나이</th>
+                            <th>성별</th>
+                            <th>부주의</th>
+                            <th>과잉행동</th>
+                            <th>총점</th>
+                            <th>응답시간(초)</th>
+                            <th>검사일시</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {#each adminData as row}
+                            <tr>
+                                <td>{row.response_id}</td>
+                                <td>{row.name}</td>
+                                <td>{row.age}</td>
+                                <td>{row.gender}</td>
+                                <td>{row.inattention}</td>
+                                <td>{row.hyperactivity}</td>
+                                <td>{row.total}</td>
+                                <td>{row.response_time}</td>
+                                <td>{row.recorded_at}</td>
+                            </tr>
+                        {/each}
+                    </tbody>
+                </table>
+            </div>
+        {/if}
+
         <button onclick={() => phase = 'select'}>돌아가기</button>
     </div>
 
@@ -603,5 +658,38 @@ select:focus { border-color: #6366f1; }
 .consent-check input[type="checkbox"] {
     width: 20px; height: 20px;
     accent-color: #6366f1; cursor: pointer;
+}
+
+/* 관리자 */
+.admin-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 0.9em; margin-bottom: 20px;
+}
+.admin-table th {
+    background: #6366f1; color: #fff;
+    padding: 10px 12px; text-align: left;
+    white-space: nowrap;
+}
+.admin-table td {
+    padding: 10px 12px; border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+}
+.admin-table tr:hover td {
+    background: #f1f5f9;
+}.admin-table {
+    width: 100%; border-collapse: collapse;
+    font-size: 0.9em; margin-bottom: 20px;
+}
+.admin-table th {
+    background: #6366f1; color: #fff;
+    padding: 10px 12px; text-align: left;
+    white-space: nowrap;
+}
+.admin-table td {
+    padding: 10px 12px; border-bottom: 1px solid #e2e8f0;
+    white-space: nowrap;
+}
+.admin-table tr:hover td {
+    background: #f1f5f9;
 }
 </style>

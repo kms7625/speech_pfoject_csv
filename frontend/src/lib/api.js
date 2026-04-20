@@ -52,3 +52,7 @@ export const loadDraft = (child_id) =>
 // 삭제
 export const deleteDraft = (child_id) =>
     request('DELETE', `/score/draft/${child_id}`);
+
+// 관리자 전체 조회
+export const getAllResponses = () =>
+    request('GET', '/score/admin/all');
