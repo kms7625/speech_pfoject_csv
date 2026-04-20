@@ -410,9 +410,14 @@ function speak(text) {
                                 name="q{q.id}"
                                 value={opt.value}
                                 checked={answers[q.id] === opt.value}
-                                onchange={async () => {
-                                  answers[q.id] = Number(opt.value);
-                                  await saveCurrentDraft();
+                                onclick={async () => {
+                                    if (answers[q.id] === Number(opt.value)) {
+                                        // 이미 선택된 항목 클릭 시 해제
+                                        answers[q.id] = undefined;
+                                    } else {
+                                        answers[q.id] = Number(opt.value);
+                                    }
+                                    await saveCurrentDraft();
                                 }}
                             />
                             {opt.text}
