@@ -198,6 +198,12 @@ async function deleteSelected() {
 
     // 음성 인식 결과를 0~3 점수로 변환
     function mapTextToValue(text) {
+        // 번호로 답변
+        if (text.includes('1번') || text.includes('일번')) return 0;
+        if (text.includes('2번') || text.includes('이번')) return 1;
+        if (text.includes('3번') || text.includes('삼번')) return 2;
+        if (text.includes('4번') || text.includes('사번')) return 3;
+        // 기존 텍스트 기반 답변
         if (text.includes('전혀') || text.includes('없')) return 0;
         if (text.includes('약간') || text.includes('가끔') || text.includes('조금')) return 1;
         if (text.includes('꽤') || text.includes('자주') || text.includes('많')) return 2;
