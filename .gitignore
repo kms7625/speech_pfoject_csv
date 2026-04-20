@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.idea/
+.DS_Store
+
+backend/data/children.csv
+backend/data/responses.csv
+backend/uploads/

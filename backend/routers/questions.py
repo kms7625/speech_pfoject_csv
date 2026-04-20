@@ -1,0 +1,58 @@
+from fastapi import APIRouter
+
+# 이 파일만의 라우터 객체 생성
+# prefix: 이 파일의 모든 URL 앞에 자동으로 /api/questions 붙음
+router = APIRouter(prefix="/api/questions")
+
+# 문항 데이터 — 코드 안에 직접 정의
+QUESTIONS = [
+    {"id": 1,  "text": "대화를 할 때 잘 듣지 않는 경우가 있다."},
+    {"id": 2,  "text": "지시를 잘 따르지 않거나 숙제, 임무 등을 완수하지 못하는 경우가 있다."},
+    {"id": 3,  "text": "과제나 업무를 수행하는 데 있어서 집중을 잘 못하고, 부주의로 인한 실수가 있다."},
+    {"id": 4,  "text": "지속적으로 정신력이 필요한 과제에 몰두하는 것을 피하거나, 거부하는 경우가 있다."},
+    {"id": 5,  "text": "수업이나 놀이에서 집중력을 유지하는 데 어려움을 겪는 경우가 있다."},
+    {"id": 6,  "text": "활동에 필요한 물건들을 종종 잃어버린다."},
+    {"id": 7,  "text": "외부 자극에 의해 산만해진다."},
+    {"id": 8,  "text": "일상적인 일들을 종종 잊어버린다."},
+    {"id": 9,  "text": "대화 내용 또는 지시사항을 이해하거나 이행하기 등에 어려움을 느끼는 경우가 있다."},
+    {"id": 10, "text": "손발이 가만히 있지 않으며, 자리에 앉아서는 계속 몸을 꿈틀거리는 일이 있다."},
+    {"id": 11, "text": "조용히 앉아 있어야 하는 상황에 자리에서 일어나 다니는 경우가 종종 있다."},
+    {"id": 12, "text": "상황에 맞지 않게 돌아다니거나 지나치게 산만해지는 경우가 있다."},
+    {"id": 13, "text": "차분하게 노는 것, 놀이에 몰두하는 것에 어려움을 종종 느낀다."},
+    {"id": 14, "text": "끊임없이 움직이거나, 꼼지락 거리는 행동을 하는 경우가 있다."},
+    {"id": 15, "text": "지나치게 말을 많이 하는 경우가 있다."},
+    {"id": 16, "text": "질문이 끝나기도 전에 불쑥 대답을 해버리는 경우가 있다."},
+    {"id": 17, "text": "자기 차례를 기다리지 못하는 경우가 있다."},
+    {"id": 18, "text": "다른 사람들의 대화나 활동 사이에 끼어들거나 참견하는 경우가 있다."},
+    {"id": 19, "text": "차분히 앉아 있거나, 조용히 있는 상황을 견디는 것에 어려움을 겪는 경우가 있다."},
+    {"id": 20, "text": "과제나 활동을 체계적으로 하는 데 종종 어려움을 겪는다."},
+]
+
+# 선택지 데이터
+OPTIONS = [
+    {"value": 0, "text": "전혀 그렇지 않다"},
+    {"value": 1, "text": "약간 그렇다"},
+    {"value": 2, "text": "꽤 그렇다"},
+    {"value": 3, "text": "매우 그렇다"},
+]
+
+@router.get("")
+def get_questions():
+    # 문장 + 선택지 반환
+    return {
+        "status": "success",
+        "questions": QUESTIONS,
+        "options": OPTIONS
+    }
+
+@router.get("/{question_id}")
+def get_ont_question(question_id: int):
+    # 특정 번호 문항 하나만 반환
+    for q in QUESTIONS:
+        if q["id"] == question_id:
+            return {"status": "success",
+                    "question": q,
+                    "options": OPTIONS}
+    # 없는 번호 달라하면 에러 반환
+    return {"status": "error",
+            "message": f"{question_id}번 문항 없음"}
