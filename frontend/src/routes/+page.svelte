@@ -9,7 +9,8 @@
              saveDraft,
              loadDraft,
              deleteDraft,
-             getAllResponses} from '$lib/api.js'
+             getAllResponses,
+             deleteResponses} from '$lib/api.js'
 
     // 상태 변수들
     let children = $state([]);        // 등록 아동 목록
@@ -55,6 +56,8 @@
     let adminData = $state([]);
     // 펼쳐진 행 추적(response_id 저장)
     let expandedRows = $state(new Set());
+    // 선택된 response_id 목록
+    let selectedIds = $state(new Set());
 
     // 행 펼치기/접기
     function toggleRow(id) {
@@ -66,6 +69,37 @@
         }
         expandedRows = next;
     }
+
+    // 체크박스 토글
+function toggleSelect(id) {
+    const next = new Set(selectedIds);
+    if (next.has(id)) {
+        next.delete(id);
+    } else {
+        next.add(id);
+    }
+    selectedIds = next;
+}
+
+// 전체 선택/해제
+function toggleSelectAll() {
+    if (selectedIds.size === adminData.length) {
+        selectedIds = new Set(); // 전체 해제
+    } else {
+        selectedIds = new Set(adminData.map(r => r.response_id)); // 전체 선택
+    }
+}
+
+// 선택 항목 삭제
+async function deleteSelected() {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`${selectedIds.size}건을 삭제하시겠습니까?`)) return;
+
+    await deleteResponses([...selectedIds]);
+    // 화면에서 제거
+    adminData = adminData.filter(r => !selectedIds.has(r.response_id));
+    selectedIds = new Set();
+}
 
 
     // 녹음 시작/중지 토글
@@ -484,6 +518,13 @@ function speak(text) {
                 <table class="admin-table">
                     <thead>
                         <tr>
+                            <th>
+                                <!-- 전체선택 체크박스 -->
+                                <input type="checkbox"
+                                    checked={selectedIds.size === adminData.length && adminData.length > 0}
+                                    onclick={toggleSelectAll}
+                                />
+                            </th>
                             <th></th>
                             <th>response_id</th>
                             <th>이름</th>
@@ -499,7 +540,13 @@ function speak(text) {
                     <tbody>
                         {#each adminData as row}
                             <!-- 기본 행 -->
-                            <tr>
+                            <tr class={selectedIds.has(row.response_id) ? 'selected-row' : ''}>
+                                <td>
+                                    <input type="checkbox"
+                                           checked={selectedIds.has(row.response_id)}
+                                           onclick={() => toggleSelect(row.response_id)}
+                                   />
+                                </td>
                                 <td>
                                     <button class="expand-btn"
                                         onclick={() => toggleRow(row.response_id)}>
@@ -536,7 +583,13 @@ function speak(text) {
                 </table>
             </div>
         {/if}
-
+        <div style="margin-bottom: 12px;">
+            <button class="btn-danger"
+                onclick={deleteSelected}
+                disabled={selectedIds.size === 0}>
+                🗑 선택 삭제 ({selectedIds.size}건)
+            </button>
+        </div>
         <button onclick={() => phase = 'select'}>돌아가기</button>
     </div>
 
@@ -710,24 +763,7 @@ select:focus { border-color: #6366f1; }
     padding: 10px 12px; border-bottom: 1px solid #e2e8f0;
     white-space: nowrap;
 }
-.admin-table tr:hover td {
-    background: #f1f5f9;
-}.admin-table {
-    width: 100%; border-collapse: collapse;
-    font-size: 0.9em; margin-bottom: 20px;
-}
-.admin-table th {
-    background: #6366f1; color: #fff;
-    padding: 10px 12px; text-align: left;
-    white-space: nowrap;
-}
-.admin-table td {
-    padding: 10px 12px; border-bottom: 1px solid #e2e8f0;
-    white-space: nowrap;
-}
-.admin-table tr:hover td {
-    background: #f1f5f9;
-}
+
 
 /* 펼쳐지는 문항별 응답 행 */
 .expand-btn {
@@ -756,4 +792,15 @@ select:focus { border-color: #6366f1; }
 .q-value {
     font-size: 1.1em; font-weight: 700; color: #6366f1;
 }
+
+.selected-row td {
+    background: #eef2ff;
+}
+
+.btn-danger {
+    background: #ef4444;
+}
+.btn-danger:hover { background: #dc2626; }
+
 </style>
+

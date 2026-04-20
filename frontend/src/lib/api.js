@@ -56,3 +56,7 @@ export const deleteDraft = (child_id) =>
 // 관리자 전체 조회
 export const getAllResponses = () =>
     request('GET', '/score/admin/all');
+
+// 응답 일괄 삭제
+export const deleteResponses = (response_ids) =>
+    request('DELETE', '/score/admin/delete', { response_ids });

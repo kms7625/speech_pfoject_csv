@@ -216,3 +216,27 @@ def delete_draft(child_id: str):
         writer.writerows(rows)
 
     return {"status": "success"}
+
+# 일괄 삭제 요청 형태
+class DeleteRequest(BaseModel):
+    response_ids: list[str]
+
+@router.delete("/admin/delete")
+def delete_responses(body: DeleteRequest):
+    if not DATA_PATH.exists():
+        return {"status": "success"}
+
+    with open(DATA_PATH, encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        # 선택된 id 제외하고 나머지만 유지
+        rows = [r for r in reader
+                if r["response_id"] not in body.response_ids]
+        fieldnames = reader.fieldnames
+
+    with open(DATA_PATH, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+    return {"status": "success",
+            "deleted": len(body.response_ids)}
