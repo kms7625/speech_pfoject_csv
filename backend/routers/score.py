@@ -38,7 +38,7 @@ def calc_score(answers: list[Answer]) -> dict:
         "total": total                  # 총점(0~54)
     }
 
-def save_response(child_id: str, scores: dict, response_time: float) -> str:
+def save_response(child_id: str, scores: dict, response_time: float, answers: list) -> str:
     DATA_PATH.parent.mkdir(parents=True,
                            exist_ok=True)
 
@@ -52,6 +52,9 @@ def save_response(child_id: str, scores: dict, response_time: float) -> str:
         "response_time": round(response_time, 2), # 초 단위
         "recorded_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
+    # 1~20 각 문항 답변 개별 컬럼으로 저장
+    for a in answers:
+        row[f"q{a.question_id}"] = a.value
 
     fieldnames = list(row.keys())
     # 파일이 없거나 비어있으면 헤더 작성
@@ -85,7 +88,7 @@ def submit_answers(body: ScoreRequest):
             }
 
     scores = calc_score(body.answers)
-    response_id = save_response(body.child_id, scores, body.response_time)
+    response_id = save_response(body.child_id, scores, body.response_time, body.answers)
 
     return {
         "status": "success",
