@@ -40,6 +40,8 @@
             .filter(q => answers[q.id] === undefined)
             .map(q => q.id)
     );
+    // 개인정보 동의 체크박스 상태
+    let consentChecked = $state(false);
 
 
     // 녹음 시작/중지 토글
@@ -207,7 +209,14 @@ function speak(text) {
         children = children.filter(c => c.id !== childId);
     }
 
-    // 검사 시작
+    // 아동 선택 시 동의화면으로 이동
+    function goToConsent(child) {
+        selectedChild = child;
+        consentChecked = false;
+        phase = 'consent';
+    }
+
+    // 동의 완료 후 검사 시작
     function startChecklist(child) {
         selectedChild = child;
         answers = {};
@@ -281,13 +290,46 @@ function speak(text) {
         {:else}
             {#each children as child}
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                    <button onclick={() => startChecklist(child)}>
+                    <button onclick={() => goToConsent(child)}>
                         {child.name} ({child.age}세 / {child.gender})
                     </button>
                     <button onclick={() => removeChild(child.id)}>삭제</button>
                 </div>
             {/each}
         {/if}
+    </div>
+
+<!-- 개인정보 동의 화면 -->
+{:else if phase === 'consent'}
+    <div class="card">
+        <h2>📋 개인정보 수집 및 이용 동의</h2>
+        <p class="consent-name">{selectedChild.name} ({selectedChild.age}세 / {selectedChild.gender})</p>
+
+        <div class="consent-box">
+            <p class="consent-title">수집하는 개인정보 항목</p>
+            <p>이름, 나이, 성별, ADHD 체크리스트 응답 결과, 응답 시간</p>
+
+            <p class="consent-title">수집 및 이용 목적</p>
+            <p>ADHD 증상 선별 검사 및 결과 분석</p>
+
+            <p class="consent-title">보유 및 이용 기간</p>
+            <p>검사 완료 후 연구 목적으로 보관되며, 요청 시 즉시 삭제합니다.</p>
+
+            <p class="consent-title">동의 거부 권리</p>
+            <p>개인정보 수집에 동의하지 않을 권리가 있으며, 동의 거부 시 검사 진행이 불가합니다.</p>
+        </div>
+
+        <label class="consent-check">
+            <input type="checkbox" bind:checked={consentChecked} />
+            위 개인정보 수집 및 이용에 동의합니다.
+        </label>
+
+        <div style="display: flex; gap: 12px; margin-top: 20px;">
+            <button onclick={() => phase = 'select'}>취소</button>
+            <button onclick={startChecklist} disabled={!consentChecked}>
+                동의 후 검사 시작
+            </button>
+        </div>
     </div>
 
 <!-- 체크리스트 화면 -->
@@ -470,4 +512,34 @@ function speak(text) {
 }
 
 select:focus { border-color: #6366f1; }
+
+.consent-name {
+    font-size: 1.1em; color: #475569;
+    margin-bottom: 20px; padding: 10px 16px;
+    background: #f1f5f9; border-radius: 10px;
+}
+.consent-box {
+    background: #f8fafc; border: 1px solid #e2e8f0;
+    border-radius: 14px; padding: 24px; margin-bottom: 24px;
+    font-size: 0.95em; color: #334155; line-height: 1.8;
+}
+.consent-title {
+    font-weight: 700; color: #1e293b;
+    margin-top: 16px; margin-bottom: 4px;
+}
+.consent-title:first-child { margin-top: 0; }
+.consent-check {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 1em; font-weight: 600; color: #1e293b;
+    cursor: pointer; padding: 16px;
+    border: 2px solid #e2e8f0; border-radius: 12px;
+    transition: border .2s, background .2s;
+}
+.consent-check:has(input:checked) {
+    border-color: #6366f1; background: #eef2ff;
+}
+.consent-check input[type="checkbox"] {
+    width: 20px; height: 20px;
+    accent-color: #6366f1; cursor: pointer;
+}
 </style>
