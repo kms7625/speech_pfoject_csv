@@ -24,10 +24,10 @@ QUESTIONS = [
 
 # 선택지 데이터 — 0~3점 척도
 OPTIONS = [
-    {"value": 0, "text": "전혀 그렇지 않다"},
-    {"value": 1, "text": "약간 그렇다"},
-    {"value": 2, "text": "꽤 그렇다"},
-    {"value": 3, "text": "매우 그렇다"},
+    {"value": 0, "text": "1번. 전혀 그렇지 않다"},
+    {"value": 1, "text": "2번. 약간 그렇다"},
+    {"value": 2, "text": "3번. 꽤 그렇다"},
+    {"value": 3, "text": "4번. 매우 그렇다"},
 ]
 
 def get_questions_data() -> dict:
