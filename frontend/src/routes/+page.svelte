@@ -253,8 +253,11 @@ async function deleteSelected() {
                 const curIdx = questions.findIndex(q => q.id === currentQuestion.id);
                 const nextQ  = questions[curIdx + 1];
                 if (nextQ) {
-                    // 0.5초 후 다음 문항 tts 재생 + 자동 녹음
+                    // 1.5초 후 다음 문항 tts 재생 + 자동 녹음
                     setTimeout(async () => {
+                        // 다음 문항으로 스크롤
+                        document.getElementById(`question-${nextQ.id}`)
+                            ?.scrollIntoView({ behavior: 'smooth', block: 'center'});
                         await speak(nextQ.text, nextQ);
                     }, 1500);
                 }
@@ -617,7 +620,7 @@ function speak(text) {
         </div>
 
         {#each questions as q}
-            <div class="question-box">
+            <div class="question-box" id="question-{q.id}">
                 <p>{q.id}. {q.text}
                     <button onclick={() => speak(q.text, q)}>🔊</button>
                 </p>
