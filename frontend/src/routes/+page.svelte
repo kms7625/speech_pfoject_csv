@@ -12,6 +12,17 @@
              getAllResponses,
              deleteResponses} from '$lib/api.js'
 
+    // 관리자 로그인 정보(하드코딩)
+    const ADMIN_ID = 'admin'
+    const ADMIN_PASSWORD = 'admin1234';
+
+    // 관리자 관련
+    let showAdminModal  = $state(false); // 모달 표시 여부
+    let adminIdInput    = $state('');    // 입력한 아이디
+    let adminPwInput    = $state('');    // 입력한 비밀번호
+    let adminError      = $state('');    // 오류 메시지
+    let isAdminLoggedIn = $state(false); // 로그인 상태 유지
+
     // 상태 변수들
     let children = $state([]);        // 등록 아동 목록
     let questions = $state([]);       // 문항 목록
@@ -359,6 +370,70 @@ function speak(text) {
     }
 </script>
 
+<!-- 관리자 로그인 모달 -->
+{#if showAdminModal}
+    <div class="modal-overlay"
+    role="button"
+    tabindex="0"
+    onclick={() => showAdminModal = false}
+    onkeydown={(e) => e.key === 'Escape' && (showAdminModal = false)}>
+    <div class="modal-box"
+        role="dialog"
+         tabindex="0"
+        onclick={(e) => e.stopPropagation()}
+        onkeydown={(e) => e.stopPropagation()}>
+            <h2>🔒 관리자 로그인</h2>
+
+            <input
+                type="text"
+                placeholder="아이디"
+                bind:value={adminIdInput}
+                style="margin-bottom: 12px;"
+            />
+            <input
+                type="password"
+                placeholder="비밀번호"
+                bind:value={adminPwInput}
+                onkeydown={async (e) => {
+                    if (e.key !== 'Enter') return;
+                    if (adminIdInput === ADMIN_ID && adminPwInput === ADMIN_PASSWORD) {
+                        isAdminLoggedIn = true;
+                        showAdminModal = false;
+                        const res = await getAllResponses();
+                        adminData = res.data;
+                        phase = 'admin';
+                    } else {
+                        adminError = '아이디 또는 비밀번호가 틀렸습니다.';
+                    }
+                }}
+            />
+
+            {#if adminError}
+                <p style="color: #ef4444; font-size: 0.9em; margin-top: 8px;">
+                    {adminError}
+                </p>
+            {/if}
+
+            <div style="display: flex; gap: 12px; margin-top: 20px;">
+                <button class="btn-outline" onclick={() => showAdminModal = false}>
+                    취소
+                </button>
+                <button onclick={async () => {
+                    if (adminIdInput === ADMIN_ID && adminPwInput === ADMIN_PASSWORD) {
+                        isAdminLoggedIn = true;
+                        showAdminModal = false;
+                        const res = await getAllResponses();
+                        adminData = res.data;
+                        phase = 'admin';
+                    } else {
+                        adminError = '아이디 또는 비밀번호가 틀렸습니다.';
+                    }
+                }}>확인</button>
+            </div>
+        </div>
+    </div>
+{/if}
+
 
 
 <!-- 아동 선택 화면 -->
@@ -367,9 +442,17 @@ function speak(text) {
         <h1>🧠 ADHD 체크리스트</h1>
         <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
             <button onclick={async () => {
-                const res = await getAllResponses();
-                adminData = res.data;
-                phase = 'admin';
+                if (isAdminLoggedIn) {
+                    getAllResponses().then(res => {
+                        adminData = res.data;
+                        phase = 'admin';
+                    });
+                } else {
+                    adminIdInput   = '';
+                    adminPwInput   = '';
+                    adminError     = '';
+                    showAdminModal = true;
+                }
             }}>🔧 관리자</button>
         </div>
 
@@ -634,7 +717,7 @@ function speak(text) {
     h1 { font-size: 1.9em; color: #3730a3; margin-bottom: 8px; }
     h2 { font-size: 1.6em; color: #3730a3; margin-bottom: 16px; }
 
-    input[type="text"], input[type="number"] {
+    input[type="text"], input[type="number"] , input[type="password"]{
         width: 100%; padding: 14px 16px; font-size: 1.1em;
         border: 2px solid #e2e8f0; border-radius: 12px;
         margin-bottom: 16px; outline: none; transition: border .2s;
@@ -808,6 +891,24 @@ select:focus { border-color: #6366f1; }
     background: #ef4444;
 }
 .btn-danger:hover { background: #dc2626; }
+
+/* 관리자 로그인 */
+    .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+}
+.modal-box {
+    background: #fff; border-radius: 20px;
+    padding: 36px 40px; width: 100%; max-width: 400px;
+    box-shadow: 0 24px 64px rgba(0,0,0,.3);
+}
+.btn-outline {
+    background: #fff; color: #6366f1;
+    border: 2px solid #6366f1;
+}
+.btn-outline:hover { background: #f0f0ff; }
 
 </style>
 
