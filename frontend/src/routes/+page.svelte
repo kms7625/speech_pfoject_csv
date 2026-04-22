@@ -690,7 +690,7 @@ function speak(text) {
                                     onclick={toggleSelectAll}
                                 />
                             </th>
-                            <th></th>
+                            <th style="text-align: center;">문항별<br>답변</th>
                             <th>response_id</th>
                             <th>이름</th>
                             <th>나이</th>
