@@ -148,7 +148,7 @@ async function deleteSelected() {
                 // 재안내 TTS
                 await speak('말씀해 주세요')
             }
-        }, 10000);
+        }, 5000);
 
         mediaRecorder = new MediaRecorder(stream);
         mediaRecorder.ondataavailable = (e) => {
