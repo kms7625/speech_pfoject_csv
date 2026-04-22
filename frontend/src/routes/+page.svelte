@@ -132,7 +132,7 @@ async function deleteSelected() {
         playSound(880, 0.3);
         await new Promise(resolve => setTimeout(resolve, 350));
 
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true});
+        const stream = await navigator.mediaDevices.getUserMedia({audio: true});
         chunks = [];
 
         // 녹음 시작 시 현재 문항 답변 초기화
@@ -140,15 +140,55 @@ async function deleteSelected() {
             answers[currentQuestion.id] = undefined;
         }
 
-        // 10초 무음 타이머 시작
+        // 5초 무음 타이머 시작
+        const audioCtx2  = new AudioContext();
+        const src2       = audioCtx2.createMediaStreamSource(stream);
+        const analyser2  = audioCtx2.createAnalyser();
+        analyser2.fftSize = 512;
+        src2.connect(analyser2);
+        const dataArr2 = new Uint8Array(analyser2.frequencyBinCount);
+
+        let speechDetected = false; // 한 번이라도 말했는지
+        let quietStart     = null;  // 조용해진 시작 시각
+
+        const SPEECH_THRESHOLD = 15;  // 말소리 감지 임계값 (높이면 덜 민감)
+        const QUIET_DURATION   = 800; // 말 끊긴 후 몇 ms 뒤에 종료 (짧을수록 빠름)
+        const MAX_WAIT         = 5000; // 아무 말 없을 때 최대 대기 (ms)
+
+        // 아무 말 없을 때 최대 대기 타이머
         silenceTimer = setTimeout(async () => {
-            if (isRecording) {
-                // 녹음 중지
+            if (isRecording && !isProcessing) {
                 mediaRecorder.stop();
-                // 재안내 TTS
-                await speak('말씀해 주세요')
+                await new Promise(r => setTimeout(r, 100));
+                if (!isProcessing) await speak('말씀해 주세요');
             }
-        }, 5000);
+        }, MAX_WAIT);
+
+        const voiceInterval = setInterval(() => {
+            if (!isRecording) {
+                clearInterval(voiceInterval);
+                audioCtx2.close();
+                return;
+            }
+            analyser2.getByteFrequencyData(dataArr2);
+            const avg = dataArr2.reduce((s, v) => s + v, 0) / dataArr2.length;
+
+            if (avg > SPEECH_THRESHOLD) {
+                // 말소리 감지 — 최대 대기 타이머 취소
+                clearTimeout(silenceTimer);
+                silenceTimer = null;
+                speechDetected = true;
+                quietStart = null;
+            } else if (speechDetected) {
+                // 말하다가 조용해진 경우
+                if (!quietStart) quietStart = Date.now();
+                if (Date.now() - quietStart > QUIET_DURATION) {
+                    // QUIET_DURATION 동안 조용하면 즉시 종료
+                    clearInterval(voiceInterval);
+                    if (isRecording) mediaRecorder.stop();
+                }
+            }
+        }, 100);
 
         mediaRecorder = new MediaRecorder(stream);
         mediaRecorder.ondataavailable = (e) => {
@@ -156,6 +196,9 @@ async function deleteSelected() {
         };
         mediaRecorder.onstop = async () => {
             clearTimeout(silenceTimer); // 타이머 취소
+            clearInterval(voiceInterval); // 볼륨 감지 루프 정리
+            audioCtx2.close();
+            isProcessing = true; // stt처리 시작 즉시 표시
             stream.getTracks().forEach(t => t.stop());
             await processRecording();
         };
@@ -164,8 +207,12 @@ async function deleteSelected() {
         isRecording = true;
     }
 
+
     // 녹음 완료 후 STT 처리
     async function processRecording() {
+        // 혹시 남아있는 silenceTimer 확실히 취소
+        clearTimeout(silenceTimer);
+        silenceTimer = null;
         isProcessing = true;
 
         // 10초 타임아웃 시작
@@ -196,6 +243,7 @@ async function deleteSelected() {
             const value = mapTextToValue(text);
             if (value !== null && currentQuestion) {
                 answers[currentQuestion.id] = value;
+                await saveCurrentDraft(); // 인식 성공 시 즉시 저장
                 // 인식 성공 확인 사운드(높은 음 두번)
                 playSound(660, 0.15);
                 setTimeout(() => playSound(880, 0.2), 160);
