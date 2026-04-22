@@ -538,12 +538,6 @@ function speak(text) {
             </span>
         </div>
 
-        <div class="progress-bar">
-            <div class="progress-fill"
-                 style="width: {(Object.keys(answers).length / questions.length) * 100}%">
-            </div>
-        </div>
-
         {#each questions as q}
             <div class="question-box">
                 <p>{q.id}. {q.text}
@@ -773,15 +767,6 @@ function speak(text) {
         0%   { box-shadow: 0 0 0 0 rgba(239,68,68,.7); }
         70%  { box-shadow: 0 0 0 12px rgba(239,68,68,0); }
         100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
-    }
-
-    .progress-bar {
-        background: #e2e8f0; border-radius: 99px;
-        height: 8px; margin-bottom: 24px; overflow: hidden;
-    }
-    .progress-fill {
-        background: linear-gradient(90deg, #6366f1, #7c3aed);
-        height: 100%; border-radius: 99px; transition: width .35s ease;
     }
 
     .result-score {
