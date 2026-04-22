@@ -7,7 +7,7 @@ UPLOAD_DIR = Path(__file__).parent.parent / "uploads"
 UPLOAD_DIR.mkdir(exist_ok=True)
 
 # Whisper 모델 로딩 — 서버 시작 시 한 번만 실행
-model = whisper.load_model("base")
+model = whisper.load_model("small")
 
 def transcribe_audio(content: bytes) -> str:
     """음성 바이트 데이터를 텍스트로 변환해서 반환"""
