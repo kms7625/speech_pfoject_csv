@@ -200,6 +200,16 @@ async function deleteSelected() {
                 playSound(660, 0.15);
                 setTimeout(() => playSound(880, 0.2), 160);
                 setTimeout(() => playSound(1100, 0.25), 320);
+
+                // 다음 문항 자동 이동
+                const curIdx = questions.findIndex(q => q.id === currentQuestion.id);
+                const nextQ  = questions[curIdx + 1];
+                if (nextQ) {
+                    // 0.5초 후 다음 문항 tts 재생 + 자동 녹음
+                    setTimeout(async () => {
+                        await speak(nextQ.text, nextQ);
+                    }, 1500);
+                }
             }
         } catch(e) {
             console.log('STT 오류:', e);
