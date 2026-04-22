@@ -618,6 +618,18 @@ function speak(text) {
                 {ttsSpeed}x
             </span>
         </div>
+        <!-- 진행률 바 -->
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+            <div class="progress-bar" style="flex: 1; margin-bottom: 0;">
+                <div class="progress-fill"
+                     style="width: {(Object.keys(answers).length / questions.length) * 100}%">
+                </div>
+            </div>
+            <span style="font-size: 0.9em; color: #6366f1; font-weight: 700; white-space: nowrap;">
+                {Object.keys(answers).filter(k => answers[k] !== undefined).length} / {questions.length}
+                ({Math.round((Object.keys(answers).filter(k => answers[k] !== undefined).length / questions.length) * 100)}%)
+            </span>
+        </div>
 
         {#each questions as q}
             <div class="question-box" id="question-{q.id}">
@@ -849,6 +861,16 @@ function speak(text) {
         70%  { box-shadow: 0 0 0 12px rgba(239,68,68,0); }
         100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
     }
+
+    .progress-bar {
+        background: #e2e8f0; border-radius: 99px;
+        height: 8px; overflow: hidden;
+    }
+    .progress-fill {
+        background: linear-gradient(90deg, #6366f1, #7c3aed);
+        height: 100%; border-radius: 99px; transition: width .35s ease;
+    }
+
 
     .result-score {
         font-size: 3.2em; font-weight: 800;
