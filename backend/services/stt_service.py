@@ -19,7 +19,14 @@ def transcribe_audio(content: bytes) -> str:
         f.write(content)
 
     # Whisper로 한국어 텍스트 변환
-    result = model.transcribe(str(save_path), language="ko", fp16=False)
+    result = model.transcribe(str(save_path),
+                              language="ko",
+                              fp16=False,
+                              temperature=0,                   # 일관된 결과(0이 젤 정확)
+                              best_of=1,                       # 후보 1개만(속도향상)
+                              beam_size=5,                     # 빔서치 크기(정확도향상)
+                              condition_on_previous_text=False # 이전 텍스트 의존 제거
+                              )
     text   = result["text"].strip()
 
     # 처리 완료 후 임시 파일 삭제

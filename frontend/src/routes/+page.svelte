@@ -222,15 +222,27 @@ async function deleteSelected() {
     // 음성 인식 결과를 0~3 점수로 변환
     function mapTextToValue(text) {
         // 번호로 답변
-        if (text.includes('1번') || text.includes('일번')) return 0;
-        if (text.includes('2번') || text.includes('이번')) return 1;
-        if (text.includes('3번') || text.includes('삼번')) return 2;
-        if (text.includes('4번') || text.includes('사번')) return 3;
-        // 기존 텍스트 기반 답변
-        if (text.includes('전혀') || text.includes('없')) return 0;
-        if (text.includes('약간') || text.includes('가끔') || text.includes('조금')) return 1;
-        if (text.includes('꽤') || text.includes('자주') || text.includes('많')) return 2;
-        if (text.includes('매우') || text.includes('항상') || text.includes('심')) return 3;
+        if (text.includes('1번') || text.includes('일번') || text.includes('하나')) return 0;
+        if (text.includes('2번') || text.includes('이번') || text.includes('둘') || text.includes('두번')) return 1;
+        if (text.includes('3번') || text.includes('삼번') || text.includes('셋') || text.includes('세번')) return 2;
+        if (text.includes('4번') || text.includes('사번') || text.includes('넷') || text.includes('네번')) return 3;
+
+        // 0점 키워드
+        if (text.includes('전혀') || text.includes('없') || text.includes('아니') ||
+            text.includes('안') || text.includes('절대')) return 0;
+
+        // 1점 키워드
+        if (text.includes('약간') || text.includes('가끔') || text.includes('조금') ||
+            text.includes('드물') || text.includes('별로') || text.includes('稀')) return 1;
+
+        // 2점 키워드
+        if (text.includes('꽤') || text.includes('자주') || text.includes('많') ||
+            text.includes('종종') || text.includes('보통') || text.includes('그렇')) return 2;
+
+        // 3점 키워드
+        if (text.includes('매우') || text.includes('항상') || text.includes('심') ||
+            text.includes('굉장') || text.includes('엄청') || text.includes('늘') ||
+            text.includes('언제나') || text.includes('매일')) return 3;
         return null;
     }
 
