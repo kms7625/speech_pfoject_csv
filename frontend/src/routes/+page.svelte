@@ -63,6 +63,8 @@
     let consentChecked = $state(false);
     // tts 재생 속도(0.5 ~ 2.0)
     let ttsSpeed = $state(1.0);
+    // 현재 재생 중인 tts 오디오 추적
+    let currentAudio = $state(null);
     // 관리자 조회
     let adminData = $state([]);
     // 펼쳐진 행 추적(response_id 저장)
@@ -236,6 +238,12 @@ function speak(text) {
 */
     async function speak(text, question = null) {
     try {
+        // 재생 중인 오디오 있으면 중지
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+            currentAudio = null;
+        }
         const res = await generateTTS(text, ttsSpeed);
         if (res && res.status === 'success') {
             const audio = new Audio(`http://localhost:8000/api/tts/file/${res.filename}`);
@@ -248,7 +256,7 @@ function speak(text) {
                     await startRecording();
                 }
             };
-
+            currentAudio = audio;
             audio.play();
         } else {
             console.log('TTS 응답 실패:', res);
