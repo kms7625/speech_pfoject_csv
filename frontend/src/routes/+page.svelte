@@ -63,6 +63,10 @@
     let consentChecked = $state(false);
     // tts 재생 속도(0.5 ~ 2.0)
     let ttsSpeed = $state(1.0);
+    // 카드형 문항 관련
+    let currentIdx  = $state(0);   // 현재 문항 인덱스 (0~19)
+    let slideDir    = $state('');  // 슬라이드 방향: 'left' | 'right' | ''
+    let isSliding   = $state(false); // 슬라이드 애니메이션 중 여부
     // 현재 재생 중인 tts 오디오 추적
     let currentAudio = $state(null);
     // 관리자 조회
@@ -250,15 +254,10 @@ async function deleteSelected() {
                 setTimeout(() => playSound(1100, 0.25), 320);
 
                 // 다음 문항 자동 이동
-                const curIdx = questions.findIndex(q => q.id === currentQuestion.id);
-                const nextQ  = questions[curIdx + 1];
-                if (nextQ) {
                     // 1.5초 후 다음 문항 tts 재생 + 자동 녹음
+                if (currentIdx < questions.length -1) {
                     setTimeout(async () => {
-                        // 다음 문항으로 스크롤
-                        document.getElementById(`question-${nextQ.id}`)
-                            ?.scrollIntoView({ behavior: 'smooth', block: 'center'});
-                        await speak(nextQ.text, nextQ);
+                        await goNext();
                     }, 1500);
                 }
             }
@@ -378,6 +377,7 @@ function speak(text) {
         answers = {};
         result = null;
         startTime = Date.now(); // 검사 시작 시간 기록
+        currentIdx = 0; // 첫 문항부터 시작
         phase = 'checklist';
 
         // 기존 임시저장 있으면 불러오기
@@ -387,9 +387,68 @@ function speak(text) {
                 answers[a.question_id] = a.value;
             });
             draftSavedAt = res.draft.saved_at;
+            // 마지막으로 답변한 문항으로 이동
+            const lastAnswered = Math.max(...res.draft.answers.map(a => a.question_id));
+            const idx = questions.findIndex(q => q.id === lastAnswered);
+            if (idx >= 0) currentIdx = idx;
         }
+
+        // 첫 문항 TTS 자동 재생
+        setTimeout(async () => {
+            if (questions[currentIdx]) {
+                currentQuestion = questions[currentIdx];
+                await speak(questions[currentIdx].text, questions[currentIdx]);
+            }
+        }, 500);
     }
 
+    // 다음 문항 카드로 이동
+    async function goNext() {
+        if (currentIdx >= questions.length - 1 || isSliding) return;
+        isSliding = true;
+        slideDir  = 'left';
+        await new Promise(r => setTimeout(r, 350)); // 애니메이션 대기
+        currentIdx++;
+        currentQuestion = questions[currentIdx];
+        slideDir  = '';
+        isSliding = false;
+        transcript = '';
+        // 다음 문항 TTS 자동 재생
+        await speak(questions[currentIdx].text, questions[currentIdx]);
+    }
+
+    // 진행 중인 TTS/녹음 강제 중지
+    function stopAll() {
+        // TTS 중지
+        if (currentAudio) {
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+            currentAudio = null;
+        }
+        // 녹음 중지
+        if (isRecording && mediaRecorder) {
+            mediaRecorder.stop();
+        }
+        isRecording = false;
+        isProcessing = false;
+        clearTimeout(silenceTimer);
+        clearTimeout(sttTimer);
+        silenceTimer = null;
+    }
+
+    // 이전 문항 카드로 이동
+    async function goPrev() {
+        if (currentIdx <= 0 || isSliding) return;
+        stopAll(); // tts녹음중지
+        isSliding = true;
+        slideDir  = 'right';
+        await new Promise(r => setTimeout(r, 350));
+        currentIdx--;
+        currentQuestion = questions[currentIdx];
+        slideDir  = '';
+        isSliding = false;
+        transcript = '';
+    }
     // 현재 답변 임시저장
     async function saveCurrentDraft() {
         const answerList = Object.entries(answers)
@@ -596,21 +655,30 @@ function speak(text) {
         </div>
     </div>
 
-<!-- 체크리스트 화면 -->
+<!-- 체크리스트 화면 (카드형) -->
 {:else if phase === 'checklist'}
     <div class="card">
         <h2>{selectedChild.name} 검사</h2>
 
-        <!-- TTS 속도 조절 -->
+        <!-- 진행률 바 + 문항 번호 -->
         <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <div class="progress-bar" style="flex: 1; margin-bottom: 0;">
+                <div class="progress-fill"
+                     style="width: {((currentIdx + 1) / questions.length) * 100}%">
+                </div>
+            </div>
+            <span style="font-size: 0.9em; color: #6366f1; font-weight: 700; white-space: nowrap;">
+                {currentIdx + 1} / {questions.length}
+            </span>
+        </div>
+
+        <!-- TTS 속도 조절 -->
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
             <span style="font-size: 0.95em; color: #475569; white-space: nowrap;">
                 🔊 재생 속도
             </span>
             <input
-                type="range"
-                min="0.5"
-                max="2.0"
-                step="0.1"
+                type="range" min="0.5" max="2.0" step="0.1"
                 bind:value={ttsSpeed}
                 style="flex: 1;"
             />
@@ -618,69 +686,80 @@ function speak(text) {
                 {ttsSpeed}x
             </span>
         </div>
-        <!-- 진행률 바 -->
-        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
-            <div class="progress-bar" style="flex: 1; margin-bottom: 0;">
-                <div class="progress-fill"
-                     style="width: {(Object.keys(answers).length / questions.length) * 100}%">
+
+        <!-- 문항 카드 -->
+        {#if questions[currentIdx]}
+            <div class="question-card {slideDir === 'left' ? 'slide-out-left' : slideDir === 'right' ? 'slide-out-right' : ''}">
+                <div class="question-box">
+                    <p style="margin-bottom: 16px;">
+                        {questions[currentIdx].id}. {questions[currentIdx].text}
+                        <button onclick={() => speak(questions[currentIdx].text, questions[currentIdx])}>🔊</button>
+                    </p>
+                    <div class="options-grid">
+                        {#each options as opt}
+                            <label class="opt-label">
+                                <input
+                                    type="radio"
+                                    name="q{questions[currentIdx].id}"
+                                    value={opt.value}
+                                    checked={answers[questions[currentIdx].id] === opt.value}
+                                    onclick={async () => {
+                                        const qid = questions[currentIdx].id;
+                                        if (answers[qid] === Number(opt.value)) {
+                                            answers[qid] = undefined;
+                                        } else {
+                                            answers[qid] = Number(opt.value);
+                                        }
+                                        await saveCurrentDraft();
+                                    }}
+                                />
+                                {opt.text}
+                            </label>
+                        {/each}
+                    </div>
+
+                    <!-- 마이크 버튼 -->
+                    <button
+                        class="mic-btn {isRecording && currentQuestion?.id === questions[currentIdx].id ? 'recording' : ''}"
+                        onclick={() => { currentQuestion = questions[currentIdx]; toggleRecording(); }}>
+                        🎤
+                    </button>
+
+                    <!-- STT 인식 결과 -->
+                    {#if currentQuestion?.id === questions[currentIdx].id && transcript}
+                        <p style="font-size: 0.9em; color: #6366f1; margin-top: 8px; text-align: center;">
+                            인식된 텍스트: {transcript}
+                        </p>
+                    {/if}
                 </div>
             </div>
-            <span style="font-size: 0.9em; color: #6366f1; font-weight: 700; white-space: nowrap;">
-                {Object.keys(answers).filter(k => answers[k] !== undefined).length} / {questions.length}
-                ({Math.round((Object.keys(answers).filter(k => answers[k] !== undefined).length / questions.length) * 100)}%)
-            </span>
+        {/if}
+
+        <!-- 이전/다음 버튼 -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
+            <button
+                onclick={goPrev}
+                disabled={currentIdx === 0 || isSliding}>
+                ← 이전
+            </button>
+            <button
+                onclick={goNext}
+                disabled={currentIdx === questions.length - 1 || isSliding}>
+                다음 →
+            </button>
         </div>
 
-        {#each questions as q}
-            <div class="question-box" id="question-{q.id}">
-                <p>{q.id}. {q.text}
-                    <button onclick={() => speak(q.text, q)}>🔊</button>
-                </p>
-                <div class="options-grid">
-                    {#each options as opt}
-                        <label class="opt-label">
-                            <input
-                                type="radio"
-                                name="q{q.id}"
-                                value={opt.value}
-                                checked={answers[q.id] === opt.value}
-                                onclick={async () => {
-                                    if (answers[q.id] === Number(opt.value)) {
-                                        // 이미 선택된 항목 클릭 시 해제
-                                        answers[q.id] = undefined;
-                                    } else {
-                                        answers[q.id] = Number(opt.value);
-                                    }
-                                    await saveCurrentDraft();
-                                }}
-                            />
-                            {opt.text}
-                        </label>
-                    {/each}
-                </div>
-                <button
-                    class="mic-btn {isRecording && currentQuestion?.id === q.id ? 'recording' : ''}"
-                    onclick={() => { currentQuestion = q; toggleRecording(); }}>
-                    🎤
-                </button>
-
-                <!-- 인식 결과 표시 -->
-                {#if currentQuestion?.id === q.id && transcript}
-                    <p style="font-size: 0.9em; color: #6366f1; margin-top: 8px;">
-                        인식된 텍스트: {transcript}
-                    </p>
-                {/if}
-            </div>
-        {/each}
-            <!-- 마이크 버튼 -->
-        <button onclick={submit} disabled={!allAnswered}>제출</button>
-        <!--  미답변 문항 번호 계산 -->
+        <!-- 미답변 문항 표시 -->
         {#if unanswered.length > 0}
-            <p style="color: #ef4444; font-size: 0.9em; margin-top: 8px;">
-                미답변 문항: {unanswered.join(', ')}번
+            <p style="color: #94a3b8; font-size: 0.85em; margin-top: 12px; text-align: center;">
+                미답변: {unanswered.join(', ')}번
             </p>
         {/if}
-        <button onclick={() => phase = 'select'}>돌아가기</button>
+
+        <div style="display: flex; gap: 12px; margin-top: 16px;">
+            <button onclick={() => phase = 'select'}>돌아가기</button>
+            <button onclick={submit} disabled={!allAnswered}>제출</button>
+        </div>
     </div>
 
 <!-- 관리자 화면 -->
@@ -997,6 +1076,19 @@ select:focus { border-color: #6366f1; }
     border: 2px solid #6366f1;
 }
 .btn-outline:hover { background: #f0f0ff; }
+
+/* 카드형 문항 슬라이드 */
+.question-card {
+    transition: transform 0.35s ease, opacity 0.35s ease;
+}
+.question-card.slide-out-left {
+    transform: translateX(-60px);
+    opacity: 0;
+}
+.question-card.slide-out-right {
+    transform: translateX(60px);
+    opacity: 0;
+}
 
 </style>
 
