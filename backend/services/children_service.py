@@ -50,4 +50,4 @@ def remove_child(child_id: str) -> None:
     with open(DATA_PATH, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
-        writer.writerows(rows)(rows)
+        writer.writerows(rows)
