@@ -55,9 +55,9 @@ def submit_answers(body: ScoreRequest):
         "status": "success",
         "response_id": response_id,
         "scores": {
-            "inattention": f"{scores['inattention']}/27",
-            "hyperactivity": f"{scores['hyperactivity']}/27",
-            "total": f"{scores['total']}/54"
+            "inattention":   scores['inattention'],
+            "hyperactivity": scores['hyperactivity'],
+            "total":         scores['total']
         }
     }
 

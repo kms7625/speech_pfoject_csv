@@ -457,6 +457,7 @@ function speak(text) {
 
     // 답변 제출
     async function submit() {
+        stopAll(); // tts/stt 중지
         // answers 객체를 배열로 변환
         const answerList = questions.map(q => ({
             question_id: q.id,
@@ -843,10 +844,7 @@ function speak(text) {
 {:else if phase === 'result'}
     <div class="card">
         <h2>✅ 검사 완료!</h2>
-        <div class="result-score">{result.scores.total}</div>
-        <p>총점</p>
-        <p>부주의: {result.scores.inattention}</p>
-        <p>과잉행동/충동성: {result.scores.hyperactivity}</p>
+        <div class="result-score">{result.scores.total}<span style="font-size: 0.4em; font-weight: 600; color: #475569;">점입니다.</span></div>
         <button onclick={() => phase = 'select'}>처음으로</button>
     </div>
 {/if}
