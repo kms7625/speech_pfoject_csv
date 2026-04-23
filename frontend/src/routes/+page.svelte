@@ -74,6 +74,17 @@
     let expandedRows = $state(new Set());
     // 선택된 response_id 목록
     let selectedIds = $state(new Set());
+    // 다크모드
+    let darkMode = $state(false);
+
+    // 다크모드 변경 시 body에 클래스 적용
+    $effect(() => {
+        if (darkMode) {
+            document.body.classList.add('dark');
+        } else {
+            document.body.classList.remove('dark');
+        }
+    });
 
     // 행 펼치기/접기
     function toggleRow(id) {
@@ -500,7 +511,7 @@ function speak(text) {
         oscillator.stop(audioCtx.currentTime + duration);
     }
 </script>
-
+<div class={darkMode ? 'dark' : ''}> <!--다크모드 클래스-->
 <!-- 관리자 로그인 모달 -->
 {#if showAdminModal}
     <div class="modal-overlay"
@@ -572,6 +583,9 @@ function speak(text) {
     <div class="card">
         <h1>🧠 ADHD 체크리스트</h1>
         <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
+            <button class="btn-mode" onclick={() => darkMode = !darkMode}>
+                {darkMode ? '☀️ 라이트' : '🌙 다크'}
+            </button>
             <button onclick={async () => {
                 if (isAdminLoggedIn) {
                     getAllResponses().then(res => {
@@ -848,7 +862,7 @@ function speak(text) {
         <button onclick={() => phase = 'select'}>처음으로</button>
     </div>
 {/if}
-
+</div>
 <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -1078,5 +1092,89 @@ select:focus { border-color: #6366f1; }
     opacity: 0;
 }
 
+/* 다크모드 */
+:global(body.dark) {
+    background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+}
+.dark .card {
+    background: #1e293b;
+    box-shadow: 0 24px 64px rgba(0,0,0,.5);
+}
+.dark h1, .dark h2 { color: #a5b4fc; }
+.dark p { color: #cbd5e1; }
+.dark input[type="text"],
+.dark input[type="number"],
+.dark input[type="password"] {
+    background: #0f172a;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+.dark select {
+    background-color: #0f172a;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+.dark .question-box {
+    background: #0f172a;
+    color: #e2e8f0;
+}
+.dark .opt-label {
+    background: #1e293b;
+    border-color: #334155;
+    color: #e2e8f0;
+}
+.dark .opt-label:has(input:checked) {
+    background: #6366f1;
+    border-color: #6366f1;
+    color: #fff;
+}
+.dark .consent-box {
+    background: #0f172a;
+    border-color: #334155;
+    color: #cbd5e1;
+}
+.dark .consent-name {
+    background: #0f172a;
+    color: #94a3b8;
+}
+.dark .consent-check {
+    border-color: #334155;
+    color: #e2e8f0;
+}
+.dark .consent-check:has(input:checked) {
+    background: #1e1b4b;
+    border-color: #6366f1;
+}
+.dark .admin-table th { background: #4338ca; }
+.dark .admin-table td { border-color: #334155; color: #cbd5e1; }
+.dark .admin-table tr:hover td { background: #0f172a; }
+.dark .expand-row td { background: #0f172a; }
+.dark .expand-cell {
+    background: #1e293b;
+    border-color: #334155;
+}
+.dark .selected-row td { background: #1e1b4b; }
+.dark .modal-box { background: #1e293b; }
+.dark .modal-box h2 { color: #a5b4fc; }
+.dark .modal-box p { color: #cbd5e1; }
+.dark .btn-outline {
+    background: #1e293b;
+    color: #a5b4fc;
+    border-color: #6366f1;
+}
+.dark .progress-bar { background: #334155; }
+
+/* 다크모드 토글 버튼 */
+.btn-mode {
+    padding: 8px 16px;
+    font-size: 0.85em;
+    background: #e2e8f0;
+    color: #475569;
+    border-radius: 20px;
+}
+.dark .btn-mode {
+    background: #334155;
+    color: #cbd5e1;
+}
 </style>
 
