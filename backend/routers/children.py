@@ -30,5 +30,8 @@ def create_child(body: ChildCreate):
 @router.delete("/{child_id}")
 def delete_child(child_id: str):
     remove_child(child_id)
+    # 해당 아동 임시저장 데이터도 삭제
+    from services.score_service import delete_draft
+    delete_draft(child_id)
     return {"status": "success",
             "data": {"deleted": child_id}}
