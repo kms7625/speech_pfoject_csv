@@ -26,7 +26,7 @@ QUESTIONS = [
 OPTIONS = [
     {"value": 0, "text": "1번. 전혀 그렇지 않다"},
     {"value": 1, "text": "2번. 약간 그렇다"},
-    {"value": 2, "text": "3번. 꽤 그렇다"},
+    {"value": 2, "text": "3번. 종종 그렇다"},
     {"value": 3, "text": "4번. 매우 그렇다"},
 ]
 
