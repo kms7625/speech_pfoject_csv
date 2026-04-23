@@ -114,7 +114,7 @@
                 <div class="popup-score">{historyData.total}<span style="font-size:0.4em; color:#475569;">점</span></div>
                 <p class="popup-date">검사일시: {historyData.recorded_at}</p>
 
-                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                <div style="display: flex; gap: 12px; margin-top: 24px; justify-content: center;">
                     <button class="btn-outline" onclick={() => showHistoryPopup = false}>닫기</button>
                     <button onclick={() => { showHistoryPopup = false; onSelect(historyChild); }}>
                         재검사
