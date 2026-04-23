@@ -29,6 +29,21 @@ def save_response(child_id: str, scores: dict,
     DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     response_id = str(uuid.uuid4())[:8]
+
+    # 문항별 반응시간 리스트 (response_time은 전체 검사 시간)
+    # 전체 시간을 문항 수로 나눠 문항별 평균 반응시간 추정
+    q_count = len(answers)
+    avg_rt = round(response_time / q_count, 2) if q_count > 0 else 0
+
+    # 반응시간 표준편차 (문항별 데이터 없으므로 0으로 저장)
+    rt_std = 0.0
+
+    # 충동성 비율: 전체 응답시간이 짧은 경우 (평균 반응시간 2초 미만)
+    fast_ratio = round(100.0 if avg_rt < 2.0 else 0.0, 1)
+
+    # 주의분산 비율: 전체 응답시간이 긴 경우 (평균 반응시간 10초 초과)
+    slow_ratio = round(100.0 if avg_rt > 10.0 else 0.0, 1)
+
     row = {
         "response_id":  response_id,
         "child_id":     child_id,
@@ -36,6 +51,10 @@ def save_response(child_id: str, scores: dict,
         "hyperactivity":scores["hyperactivity"],
         "total":        scores["total"],
         "response_time":round(response_time, 2),
+        "avg_rt": avg_rt,  # 평균 반응시간
+        "rt_std": rt_std,  # 반응시간 표준편차
+        "fast_ratio": fast_ratio,  # 충동성 비율(%)
+        "slow_ratio": slow_ratio,  # 주의분산 비율(%)
         "recorded_at":  datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     }
     # q1~q20 각 문항 답변 개별 컬럼으로 추가

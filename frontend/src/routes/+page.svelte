@@ -34,10 +34,9 @@
     let newName = $state('');         // 신규 아동 이름 입력값
     let newAge = $state('');          // 신규 아동 나이 입력값
     // STT 관련 변수
+    let recognition = $state(null);
     let isRecording = $state(false);
     let isProcessing = $state(false);
-    let mediaRecorder = $state(null);
-    let chunks = $state([]);
     // STT인식 결과 텍스트
     let transcript = $state('');
     // 성별선택
@@ -123,7 +122,8 @@ async function deleteSelected() {
     async function toggleRecording() {
         if (isRecording) {
             clearTimeout(silenceTimer);
-            mediaRecorder.stop();
+            recognition.stop();
+            isRecording = false;
         } else {
             await startRecording();
         }
@@ -131,169 +131,114 @@ async function deleteSelected() {
 
     // 녹음 시작
     async function startRecording() {
+        if (!recognition) {
+            console.log('Web Speech API 미지원 브라우저');
+            return;
+        }
+        if (isRecording) return; // 이미 녹음 중이면 중복 실행 방지
 
         // 녹음 시작 삐 소리
         playSound(880, 0.3);
-        await new Promise(resolve => setTimeout(resolve, 350));
-
-        const stream = await navigator.mediaDevices.getUserMedia({audio: true});
-        chunks = [];
+        await new Promise(r => setTimeout(r, 350));
 
         // 녹음 시작 시 현재 문항 답변 초기화
         if (currentQuestion) {
             answers[currentQuestion.id] = undefined;
         }
 
-        // 5초 무음 타이머 시작
-        const audioCtx2  = new AudioContext();
-        const src2       = audioCtx2.createMediaStreamSource(stream);
-        const analyser2  = audioCtx2.createAnalyser();
-        analyser2.fftSize = 512;
-        src2.connect(analyser2);
-        const dataArr2 = new Uint8Array(analyser2.frequencyBinCount);
-
-        let speechDetected = false; // 한 번이라도 말했는지
-        let quietStart     = null;  // 조용해진 시작 시각
-
-        const SPEECH_THRESHOLD = 15;  // 말소리 감지 임계값 (높이면 덜 민감)
-        const QUIET_DURATION   = 800; // 말 끊긴 후 몇 ms 뒤에 종료 (짧을수록 빠름)
-        const MAX_WAIT         = 5000; // 아무 말 없을 때 최대 대기 (ms)
-
-        // 아무 말 없을 때 최대 대기 타이머
-        silenceTimer = setTimeout(async () => {
-            if (isRecording && !isProcessing) {
-                mediaRecorder.stop();
-                await new Promise(r => setTimeout(r, 100));
-                if (!isProcessing) await speak('말씀해 주세요');
-            }
-        }, MAX_WAIT);
-
-        const voiceInterval = setInterval(() => {
-            if (!isRecording) {
-                clearInterval(voiceInterval);
-                audioCtx2.close();
-                return;
-            }
-            analyser2.getByteFrequencyData(dataArr2);
-            const avg = dataArr2.reduce((s, v) => s + v, 0) / dataArr2.length;
-
-            if (avg > SPEECH_THRESHOLD) {
-                // 말소리 감지 — 최대 대기 타이머 취소
-                clearTimeout(silenceTimer);
-                silenceTimer = null;
-                speechDetected = true;
-                quietStart = null;
-            } else if (speechDetected) {
-                // 말하다가 조용해진 경우
-                if (!quietStart) quietStart = Date.now();
-                if (Date.now() - quietStart > QUIET_DURATION) {
-                    // QUIET_DURATION 동안 조용하면 즉시 종료
-                    clearInterval(voiceInterval);
-                    if (isRecording) mediaRecorder.stop();
-                }
-            }
-        }, 100);
-
-        mediaRecorder = new MediaRecorder(stream);
-        mediaRecorder.ondataavailable = (e) => {
-            if (e.data.size > 0) chunks.push(e.data);
-        };
-        mediaRecorder.onstop = async () => {
-            clearTimeout(silenceTimer); // 타이머 취소
-            clearInterval(voiceInterval); // 볼륨 감지 루프 정리
-            audioCtx2.close();
-            isProcessing = true; // stt처리 시작 즉시 표시
-            stream.getTracks().forEach(t => t.stop());
-            await processRecording();
-        };
-
-        mediaRecorder.start();
-        isRecording = true;
-    }
-
-
-    // 녹음 완료 후 STT 처리
-    async function processRecording() {
-        // 혹시 남아있는 silenceTimer 확실히 취소
-        clearTimeout(silenceTimer);
-        silenceTimer = null;
-        isProcessing = true;
-
-        // 10초 타임아웃 시작
-        sttTimer = setTimeout(async () => {
-            if (isProcessing) {
-                isProcessing = false;
-                isRecording = false;
-                console.log('STT 타임아웃');
-                await speak('잠시 후 다시 시도해 주세요');
-            }
-        }, 10000);
-
         try {
-            const blob = new Blob(chunks, { type: 'audio/webm'});
-            const formData = new FormData();
-            formData.append('file', blob, 'recording.webm');
+            recognition.start();
+            isRecording = true;
 
-            const res = await fetch('http://localhost:8000/api/stt/transcribe', {
-                method: 'POST',
-                body: formData,
-            });
-            const data = await res.json();
-            const text = data.text;
-            console.log('STT 결과:', text);
-            transcript = text;
-
-            // 음성 텍스트를 점수로 변환
-            const value = mapTextToValue(text);
-            if (value !== null && currentQuestion) {
-                answers[currentQuestion.id] = value;
-                await saveCurrentDraft(); // 인식 성공 시 즉시 저장
-                // 인식 성공 확인 사운드(높은 음 두번)
-                playSound(660, 0.15);
-                setTimeout(() => playSound(880, 0.2), 160);
-                setTimeout(() => playSound(1100, 0.25), 320);
-
-                // 다음 문항 자동 이동
-                    // 1.5초 후 다음 문항 tts 재생 + 자동 녹음
-                if (currentIdx < questions.length -1) {
-                    setTimeout(async () => {
-                        await goNext();
-                    }, 1500);
+            // 5초 무음 타이머
+            silenceTimer = setTimeout(async () => {
+                if (isRecording) {
+                    recognition.stop();
+                    await speak('말씀해 주세요');
                 }
-            }
+            }, 5000);
+
         } catch(e) {
-            console.log('STT 오류:', e);
-        } finally {
-            isProcessing = false;
+            console.log('녹음 시작 오류:', e);
             isRecording = false;
         }
     }
 
+
     // 음성 인식 결과를 0~3 점수로 변환
-    function mapTextToValue(text) {
-        // 번호로 답변
-        if (text.includes('1번') || text.includes('일번') || text.includes('하나')) return 0;
-        if (text.includes('2번') || text.includes('이번') || text.includes('둘') || text.includes('두번')) return 1;
-        if (text.includes('3번') || text.includes('삼번') || text.includes('셋') || text.includes('세번')) return 2;
-        if (text.includes('4번') || text.includes('사번') || text.includes('넷') || text.includes('네번')) return 3;
+    // 자모 분리 상수
+    const CHO  = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+    const JUNG = ["ㅏ","ㅐ","ㅑ","ㅒ","ㅓ","ㅔ","ㅕ","ㅖ","ㅗ","ㅘ","ㅙ","ㅚ","ㅛ","ㅜ","ㅝ","ㅞ","ㅟ","ㅠ","ㅡ","ㅢ","ㅣ"];
+    const JONG = ["","ㄱ","ㄲ","ㄳ","ㄴ","ㄵ","ㄶ","ㄷ","ㄹ","ㄺ","ㄻ","ㄼ","ㄽ","ㄾ","ㄿ","ㅀ","ㅁ","ㅂ","ㅄ","ㅅ","ㅆ","ㅇ","ㅈ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
 
-        // 0점 키워드
-        if (text.includes('전혀') || text.includes('없') || text.includes('아니') ||
-            text.includes('안') || text.includes('절대')) return 0;
+    function splitJamo(str) {
+        let result = "";
+        for (let i = 0; i < str.length; i++) {
+            const code = str.charCodeAt(i) - 44032;
+            if (code > -1 && code < 11172) {
+                const cho  = Math.floor(code / 588);
+                const jung = Math.floor((code - (cho * 588)) / 28);
+                const jong = code % 28;
+                result += CHO[cho] + JUNG[jung] + (JONG[jong] !== "" ? JONG[jong] : "");
+            } else {
+                result += str.charAt(i);
+            }
+        }
+        return result;
+    }
 
-        // 1점 키워드
-        if (text.includes('약간') || text.includes('가끔') || text.includes('조금') ||
-            text.includes('드물') || text.includes('별로') || text.includes('稀')) return 1;
+    function getSimilarity(s1, s2) {
+        if (!s1 || !s2) return 0;
+        s1 = String(s1);
+        s2 = String(s2);
+        const len1 = s1.length, len2 = s2.length;
+        const matrix = Array.from({ length: len1 + 1 }, () => Array(len2 + 1).fill(0));
+        for (let i = 0; i <= len1; i++) matrix[i][0] = i;
+        for (let j = 0; j <= len2; j++) matrix[0][j] = j;
+        for (let i = 1; i <= len1; i++) {
+            for (let j = 1; j <= len2; j++) {
+                const cost = s1[i-1] === s2[j-1] ? 0 : 1;
+                matrix[i][j] = Math.min(
+                    matrix[i-1][j] + 1,
+                    matrix[i][j-1] + 1,
+                    matrix[i-1][j-1] + cost
+                );
+            }
+        }
+        return 1 - matrix[len1][len2] / Math.max(len1, len2);
+    }
 
-        // 2점 키워드
-        if (text.includes('꽤') || text.includes('자주') || text.includes('많') ||
-            text.includes('종종') || text.includes('보통') || text.includes('그렇')) return 2;
+    function findBestMatch(text) {
+        const input = text.replace(/[\s.,!?]/g, "");
+        const jamoInput = splitJamo(input);
+        console.log('input:', input, 'jamoInput:', jamoInput); // 로그기록
+        let bestMatch = { value: -1, score: 0 };
 
-        // 3점 키워드
-        if (text.includes('매우') || text.includes('항상') || text.includes('심') ||
-            text.includes('굉장') || text.includes('엄청') || text.includes('늘') ||
-            text.includes('언제나') || text.includes('매일')) return 3;
-        return null;
+        const KEYWORDS = [
+            { value: 0, keywords: ["전혀", "아니", "없", "1번", "하나", "일번"] },
+            { value: 1, keywords: ["약간", "조금", "가끔", "2번", "둘", "이번"] },
+            { value: 2, keywords: ["꽤", "종종", "자주", "많", "3번", "셋", "삼번"] },
+            { value: 3, keywords: ["매우", "항상", "심", "굉장", "4번", "넷", "사번", "매일"] }
+        ];
+
+        KEYWORDS.forEach(opt => {
+            opt.keywords.forEach(keyword => {
+                if (input.includes(keyword)) {
+                    console.log('정확 매칭:', keyword, '-> value:', opt.value);
+                    bestMatch = { value: opt.value, score: 1.0 };
+                    return;
+                }
+                const score = getSimilarity(jamoInput, splitJamo(keyword));
+                if (score > 0.3) console.log('유사도:', keyword, score);
+                if (score > bestMatch.score && score > 0.4) {
+                    bestMatch = { value: opt.value, score };
+                }
+            });
+        });
+
+        console.log('bestMatch: value:', bestMatch.value, 'score:', bestMatch.score); // 로그기록
+
+        return bestMatch.value !== -1 ? bestMatch.value : null;
     }
 
    /*문항 텍스트를 소리로 읽어주는 함수
@@ -347,6 +292,51 @@ function speak(text) {
         const qRes = await getQuestions();
         questions = qRes.questions;
         options = qRes.options;
+
+        // Web Speech API 초기화
+        const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (Recognition) {
+            recognition = new Recognition();
+            recognition.lang = 'ko-KR';
+            recognition.interimResults = false;
+            recognition.continuous = false;
+
+            recognition.onresult = (e) => {
+                const text = e.results[0][0].transcript;
+                console.log('STT 결과:', text);
+                transcript = text;
+                const value = findBestMatch(text);
+                // currentQuestion 대신 questions[currentIdx] 직접 사용
+                const q = questions[currentIdx];
+                if (value !== null && q) {
+                    answers[q.id] = value;
+                    currentQuestion = q; // 동기화
+                    saveCurrentDraft();
+                    playSound(660, 0.15);
+                    setTimeout(() => playSound(880, 0.2), 160);
+                    setTimeout(() => playSound(1100, 0.25), 320);
+                    if (currentIdx < questions.length - 1) {
+                        setTimeout(async () => {
+                            await goNext();
+                        }, 1500);
+                    }
+                } else {
+                    // 인식 실패 시 재시도 안내
+                    speak('다시 한번 말씀해 주세요');
+                }
+            };
+
+            recognition.onend = () => {
+                isRecording = false;
+                isProcessing = false;
+            };
+
+            recognition.onerror = (e) => {
+                console.log('STT 오류:', e.error);
+                isRecording = false;
+                isProcessing = false;
+            };
+        }
     });
 
     //아동 등록
@@ -426,8 +416,8 @@ function speak(text) {
             currentAudio = null;
         }
         // 녹음 중지
-        if (isRecording && mediaRecorder) {
-            mediaRecorder.stop();
+        if (isRecording && recognition) {
+            recognition.stop();
         }
         isRecording = false;
         isProcessing = false;
@@ -757,7 +747,7 @@ function speak(text) {
         {/if}
 
         <div style="display: flex; gap: 12px; margin-top: 16px;">
-            <button onclick={() => phase = 'select'}>돌아가기</button>
+            <button onclick={() => {stopAll(); phase = 'select'}}>돌아가기</button>
             <button onclick={submit} disabled={!allAnswered}>제출</button>
         </div>
     </div>
