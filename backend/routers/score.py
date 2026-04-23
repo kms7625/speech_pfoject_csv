@@ -67,6 +67,15 @@ def get_child_history(child_id: str):
    return {"status": "success",
            "history": get_history(child_id)}
 
+@router.get("/latest/{child_id}")
+def get_latest(child_id: str):
+    """특정 아동의 가장 최근 검사 결과 반환"""
+    from services.score_service import get_latest_response
+    data = get_latest_response(child_id)
+    if not data:
+        return {"status": "none"}
+    return {"status": "found", "data": data}
+
 # 전체 응답 조회(관리자용)
 @router.get("/admin/all")
 def get_all():

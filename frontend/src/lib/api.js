@@ -22,6 +22,10 @@ async function request(method, path, body = null) {
 export const getChildren = () => request('GET', '/children');
 export const createChild = (name, age, gender) =>
     request('POST', '/children', { name, age, gender });
+// 특정 아동의 가장 최근 검사 결과 조회
+export async function getLatestResponse(childId) {
+    return request('GET', `/score/latest/${childId}`);
+}
 // 삭제 관련
 export const deleteChild = (childId) =>
     request('DELETE', `/children/${childId}`);

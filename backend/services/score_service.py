@@ -91,6 +91,15 @@ def get_history(child_id: str) -> list:
         return [r for r in csv.DictReader(f)
                 if r["child_id"] == child_id]
 
+def get_latest_response(child_id: str) -> dict | None:
+    """특정 아동의 가장 최근 응답 1개 반환. 없으면 None"""
+    history = get_history(child_id)
+    if not history:
+        return None
+    # recorded_at 기준 가장 최근 1개
+    latest = sorted(history, key=lambda r: r["recorded_at"], reverse=True)[0]
+    return {"total": latest["total"], "recorded_at": latest["recorded_at"]}
+
 def get_all_responses() -> list:
     """전체 응답 조회 + children.csv 조인해서 이름/나이/성별 포함"""
     if not DATA_PATH.exists():
