@@ -44,9 +44,21 @@ def save_response(child_id: str, scores: dict,
     # 주의분산 비율: 전체 응답시간이 긴 경우 (평균 반응시간 10초 초과)
     slow_ratio = round(100.0 if avg_rt > 10.0 else 0.0, 1)
 
+    # 저장 시점에 아동 정보 읽기
+    child_info = {"name": "알 수 없음", "age": "-", "gender": "-"}
+    if CHILD_PATH.exists():
+        with open(CHILD_PATH, encoding="utf-8-sig") as f:
+            for c in csv.DictReader(f):
+                if c["id"] == child_id:
+                    child_info = {"name": c["name"], "age": c["age"], "gender": c["gender"]}
+                    break
+
     row = {
         "response_id":  response_id,
         "child_id":     child_id,
+        "name":         child_info["name"],   # 저장 시점 이름
+        "age":          child_info["age"],    # 저장 시점 나이
+        "gender":       child_info["gender"], # 저장 시점 성별
         "inattention":  scores["inattention"],
         "hyperactivity":scores["hyperactivity"],
         "total":        scores["total"],
@@ -84,27 +96,9 @@ def get_all_responses() -> list:
     if not DATA_PATH.exists():
         return []
 
-    # children.csv → {id: {name, age, gender}} 매핑
-    child_map = {}
-    if CHILD_PATH.exists():
-        with open(CHILD_PATH, encoding="utf-8-sig") as f:
-            for c in csv.DictReader(f):
-                child_map[c["id"]] = {
-                    "name":   c["name"],
-                    "age":    c["age"],
-                    "gender": c["gender"]
-                }
-
-    # responses.csv 읽고 아동 정보 합치기
-    rows = []
+    # responses.csv에 이미 name/age/gender 저장되어 있으므로 조인 불필요
     with open(DATA_PATH, encoding="utf-8-sig") as f:
-        for row in csv.DictReader(f):
-            info = child_map.get(row["child_id"], {})
-            row["name"]   = info.get("name",   "알 수 없음")
-            row["age"]    = info.get("age",    "-")
-            row["gender"] = info.get("gender", "-")
-            rows.append(row)
-    return rows
+        return list(csv.DictReader(f))
 
 def delete_responses(response_ids: list) -> None:
     """선택된 response_id 목록을 CSV에서 삭제"""
