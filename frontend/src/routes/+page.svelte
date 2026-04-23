@@ -791,10 +791,10 @@ function speak(text) {
                             <th>이름</th>
                             <th>나이</th>
                             <th>성별</th>
-                            <th>부주의</th>
-                            <th>과잉행동</th>
+                            <!-- <th>부주의</th>
+                            <th>과잉행동</th>-->
                             <th>총점</th>
-                            <th>응답시간(초)</th>
+                            <!-- <th>응답시간(초)</th>-->
                             <th>검사일시</th>
                         </tr>
                     </thead>
@@ -818,10 +818,10 @@ function speak(text) {
                                 <td>{row.name}</td>
                                 <td>{row.age}</td>
                                 <td>{row.gender}</td>
-                                <td>{row.inattention}</td>
-                                <td>{row.hyperactivity}</td>
+                                <!--<td>{row.inattention}</td>
+                                <td>{row.hyperactivity}</td>-->
                                 <td>{row.total}</td>
-                                <td>{row.response_time}</td>
+                                <!--<td>{row.response_time}</td>-->
                                 <td>{row.recorded_at}</td>
                             </tr>
                             <!-- 펼쳐지는 문항별 응답 행 -->
