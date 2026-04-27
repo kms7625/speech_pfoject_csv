@@ -49,13 +49,13 @@ speech_project_csv/
 
 ## ⚙️ 기술 스택
 
-| 구분 | 기술 |
-|------|------|
-| 백엔드 | Python 3.12, FastAPI, gTTS |
-| 프론트엔드 | SvelteKit, Svelte 5 (Runes) |
-| 데이터 저장 | CSV 파일 |
+| 구분 | 기술                           |
+|------|------------------------------|
+| 백엔드 | Python 3.12, FastAPI, gTTS   |
+| 프론트엔드 | SvelteKit, Svelte 5 (Runes)  |
+| 데이터 저장 | CSV 파일                       |
 | 음성 출력 (TTS) | gTTS (Google Text-to-Speech) |
-| 음성 인식 (STT) | Web Speech API (브라우저 내장, 크롬 권장) |
+| 음성 인식 (STT) | Whisper (OpenAI, 로컬 실행)      |
 
 ---
 
