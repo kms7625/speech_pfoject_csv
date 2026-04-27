@@ -26,13 +26,15 @@
         transcript,              // STT 인식 결과 텍스트
         unanswered,              // 미답변 문항 id 배열
         allAnswered,             // 모든 문항 답변 여부
+        currentAudio,            // 현재 재생 중인 오디오 객체
+        speak,                   // TTS 재생 함수
+        stopTTS,                 // TTS 정지 함수
         onToggleRecording,       // (question, isTTS) => void: 마이크/스피커 버튼
         onGoNext,                // () => void: 다음 문항으로 이동
         onGoPrev,                // () => void: 이전 문항으로 이동
         onSubmit,                // () => void: 제출
         onBack,                  // () => void: 돌아가기 (TTS/STT 중지 후 select 화면으로)
         onSaveDraft,             // () => void: 임시저장
-        onStop                   // tts/stt 정지 콜백
     } = $props();
 </script>
 
@@ -70,9 +72,15 @@
                 <p style="margin-bottom: 16px;">
                     {questions[currentIdx].id}. {questions[currentIdx].text}
                     <!-- isTTS=true: TTS 재생만, STT 자동 시작 포함 -->
-                    <button onclick={() => onToggleRecording(questions[currentIdx], true)}>🔊</button>
-                    <!-- 정지버튼 -->
-                    <button class="btn-stop" onclick={onStop}>⏹</button>
+                    <button onclick={() => {
+                        if (currentAudio) {
+                            stopTTS();
+                        } else {
+                            speak(questions[currentIdx].text, questions[currentIdx]);
+                        }
+                    }}>
+                        {currentAudio ? '⏹️' : '🔊'}
+                    </button>
                 </p>
 
                 <!-- 선택지 4개 (2열 그리드) -->

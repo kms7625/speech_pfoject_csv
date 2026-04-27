@@ -68,6 +68,8 @@
         questions.length > 0 && questions.every(q => answers[q.id] !== undefined)
     );
 
+    let isManuallyStopped = $state(false);
+
     // ── 다크모드 ───────────────────────────────────────────
     // darkMode 변경 시 body에 'dark' 클래스 추가/제거
     $effect(() => {
@@ -93,7 +95,9 @@
                 const audio = new Audio(`http://localhost:8000/api/tts/file/${res.filename}`);
                 audio.playbackRate = ttsSpeed;
                 // TTS 재생 끝나면 자동으로 해당 문항 STT 녹음 시작
+                isManuallyStopped = false; // 새 재생 시작 시 초기화
                 audio.onended = async () => {
+                    if (isManuallyStopped) return; // 수동 정지면 자동 녹음 안함
                     if (question) {
                         currentQuestion = question;
                         await startRecording();
@@ -181,6 +185,23 @@
         clearTimeout(silenceTimer);
         clearTimeout(sttTimer);
         silenceTimer = null;
+    }
+
+    // TTS만 정지 (STT는 유지)
+    function stopTTS() {
+        // tts 정지
+        if (currentAudio) {
+            isManuallyStopped = true;
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+            currentAudio = null;
+        }
+        // STT 정지
+        if (isRecording && recognition) {
+            clearTimeout(silenceTimer);
+            recognition.stop();
+            isRecording = false;
+        }
     }
 
     // ── 카드 이동 ──────────────────────────────────────────
@@ -407,13 +428,15 @@
             {transcript}
             {unanswered}
             {allAnswered}
-            onToggleRecording={(q, isTTS) => isTTS ? speakQuestion(q) : toggleRecording(q)}
+            {currentAudio}
+            {speak}
+            {stopTTS}
+            onToggleRecording={(q) => toggleRecording(q)}
             onGoNext={goNext}
             onGoPrev={goPrev}
             onSubmit={submit}
             onBack={() => { stopAll(); phase = 'select'; }}
             onSaveDraft={saveCurrentDraft}
-            onStop={stopAll}
         />
 
     <!-- 관리자 화면 -->
