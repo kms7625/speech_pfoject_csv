@@ -5,7 +5,9 @@ const BASE = 'https://tweet-isolated-civil.ngrok-free.dev/api';
 async function request(method, path, body = null) {
     const options = {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json',
+                   'ngrok-skip-browser-warning': 'true', // ngrok 경고 페이지 스킵
+        },
     };
     if (body) {
         options.body = JSON.stringify(body);
