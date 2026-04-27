@@ -1,5 +1,5 @@
 // 백엔드 주소 - 모든 요청 여기로감
-const BASE = 'http://localhost:8000/api';
+const BASE = 'https://tweet-isolated-civil.ngrok-free.dev/api';
 
 // 공통 요청 함수 - GET/POST 둘 다 여기서 처리
 async function request(method, path, body = null) {

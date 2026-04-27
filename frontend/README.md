@@ -207,3 +207,90 @@ python-dotenv
 ```bash
 npm install
 ```
+
+### 서버환경세팅(mac) 윈도우는 밑으로
+1. ngrok 설치
+```bash
+brew install ngrok
+```
+2. ngrok 계정 가입 후 인증
+```bash
+ngrok config add-authtoken 발급받은 토큰
+```
+3. 백엔드 실행
+```bash
+cd backend
+uvicorn main:app --reload --host 0.0.0.0
+```
+4. bgrok으로 백엔드 공개
+```bash
+ngrok http 8000
+```
+실행하고 터미널에 이런 주소 뜨면
+```bash
+Forwarding  https://abc123.ngrok-free.app → http://localhost:8000
+```
+5. api.js 주소 변경
+```bash
+const BASE = 'https://abc123.ngrok-free.app/api';
+```
+6. 프론트엔드 실행
+```bash
+cd frontend
+npm run dev -- --host
+
+터미널에 뜨는 Network: http://192.168.x.x:5173 주소로 외부에서 접속하면됨
+시연 끝나면 api.js 주소 다시 http://localhost:8000/api로 돌려놓으면됨
+```
+
+## 윈도우 서버환경세팅
+
+### 사전 준비
+- [ngrok 회원가입](https://ngrok.com) 후 Authtoken 발급
+- Python, Node.js 설치 확인
+
+---
+
+### 1. ngrok 설치
+```bash
+winget install ngrok
+```
+
+### 2. ngrok 토큰 등록
+```bash
+ngrok config add-authtoken 발급받은토큰
+```
+
+### 3. 백엔드 실행
+```bash
+cd C:\Users\사용자명\PycharmProjects\speech_project_csv\backend
+.venv\Scripts\activate
+uvicorn main:app --reload --host 0.0.0.0
+```
+
+### 4. 새 터미널 열고 ngrok 실행
+```bash
+ngrok http 8000
+```
+터미널에 표시되는 `Forwarding` 주소 확인
+예시: `https://xxxx.ngrok-free.app`
+
+### 5. api.js 수정
+`frontend/src/lib/api.js` 파일에서:
+```js
+const BASE = 'https://xxxx.ngrok-free.app/api'; // ngrok 주소로 변경
+```
+
+### 6. 프론트엔드 실행
+```bash
+cd C:\Users\사용자명\PycharmProjects\speech_project_csv\frontend
+npm run dev -- --host
+```
+터미널에 표시되는 `Network: http://192.168.x.x:5173` 주소를 상대방에게 공유
+
+---
+
+> ⚠️ 시연 종료 후 `api.js`를 원래대로 복구
+> ```js
+> const BASE = 'http://localhost:8000/api';
+> ```
