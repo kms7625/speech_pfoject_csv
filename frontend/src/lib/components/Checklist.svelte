@@ -37,10 +37,7 @@
 </script>
 
 <div class="card">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-        <h2 style="margin-bottom: 0;">{selectedChild.name} 검사</h2>
-        <button class="btn-stop" onclick={onStop}>⏹ 정지</button>
-    </div>
+    <h2>{selectedChild.name} 검사</h2>
 
     <!-- 진행률 바 + 문항 번호 -->
     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
@@ -74,6 +71,8 @@
                     {questions[currentIdx].id}. {questions[currentIdx].text}
                     <!-- isTTS=true: TTS 재생만, STT 자동 시작 포함 -->
                     <button onclick={() => onToggleRecording(questions[currentIdx], true)}>🔊</button>
+                    <!-- 정지버튼 -->
+                    <button class="btn-stop" onclick={onStop}>⏹</button>
                 </p>
 
                 <!-- 선택지 4개 (2열 그리드) -->
