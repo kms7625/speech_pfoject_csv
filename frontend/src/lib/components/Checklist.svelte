@@ -31,12 +31,16 @@
         onGoPrev,                // () => void: 이전 문항으로 이동
         onSubmit,                // () => void: 제출
         onBack,                  // () => void: 돌아가기 (TTS/STT 중지 후 select 화면으로)
-        onSaveDraft              // () => void: 임시저장
+        onSaveDraft,             // () => void: 임시저장
+        onStop                   // tts/stt 정지 콜백
     } = $props();
 </script>
 
 <div class="card">
-    <h2>{selectedChild.name} 검사</h2>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <h2 style="margin-bottom: 0;">{selectedChild.name} 검사</h2>
+        <button class="btn-stop" onclick={onStop}>⏹ 정지</button>
+    </div>
 
     <!-- 진행률 바 + 문항 번호 -->
     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
@@ -219,4 +223,13 @@ button:hover  { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(0,0,0,.
 button:active { transform: translateY(0); }
 button:disabled { background: #e2e8f0; color: #94a3b8; transform: none; cursor: not-allowed; }
 p { color: #475569; }
+
+/* tts/stt 정지버튼 */
+
+.btn-stop {
+    padding: 8px 16px; font-size: 0.85em;
+    background: #f59e0b; color: #fff;
+    border-radius: 12px;
+}
+.btn-stop:hover { background: #d97706; }
 </style>

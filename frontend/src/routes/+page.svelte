@@ -413,6 +413,7 @@
             onSubmit={submit}
             onBack={() => { stopAll(); phase = 'select'; }}
             onSaveDraft={saveCurrentDraft}
+            onStop={stopAll}
         />
 
     <!-- 관리자 화면 -->
