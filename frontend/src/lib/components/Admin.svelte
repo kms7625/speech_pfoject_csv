@@ -85,6 +85,7 @@
                         </th>
                         <th style="text-align: center;">문항별<br>답변</th>
                         <th>response_id</th>
+                        <th>child_id</th>
                         <th>이름</th>
                         <th>나이</th>
                         <th>성별</th>
@@ -109,6 +110,7 @@
                                 </button>
                             </td>
                             <td>{row.response_id}</td>
+                            <td>{row.child_id}</td>
                             <td>{row.name}</td>
                             <td>{row.age}</td>
                             <td>{row.gender}</td>
