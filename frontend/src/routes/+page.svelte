@@ -342,9 +342,6 @@
         // TTS 안전 실행 (setTimeout 제거)
         await tick?.();
 
-        ttsTimer = setTimeout(() => {
-            speakSafe(currentQuestion.text, currentQuestion);
-        }, 500);
     }
 
        
