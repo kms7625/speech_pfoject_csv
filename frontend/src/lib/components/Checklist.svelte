@@ -44,6 +44,9 @@
         Object.fromEntries(questions.map((q, i) => [q.id, i]))
     );
 
+    // 자동 이동 플래그 추가
+    let autoMoving = $state(false); // 자동 이동 중 여부
+
     // 🔹 문항 상태 판단 (색상용)
     function getQuestionState(qid) {
         if (questions[currentIdx]?.id === qid) return 'current';
@@ -119,8 +122,10 @@
                                     await onSaveDraft(); // 선택 즉시 임시저장
 
                                     // 자동 다음 이동 (STT 녹음 중이면 이동 안함 - 중복 이동 방지)
+                                    autoMoving = true;
                                     await new Promise(r => setTimeout(r, 1000))
                                     if (!isRecording) await onGoNext();
+                                    autoMoving = false;
                                 }}
                             />
                             {opt.text}
@@ -151,7 +156,7 @@
         <!-- 첫 번째 문항이거나 슬라이딩 중이면 비활성화 -->
         <button onclick={onGoPrev} disabled={currentIdx === 0 || isSliding}>← 이전</button>
         <!-- 마지막 문항이거나 슬라이딩 중이면 비활성화 -->
-        <button onclick={onGoNext} disabled={currentIdx === questions.length - 1 || isSliding}>다음 →</button>
+        <button onclick={() => { if (!autoMoving) onGoNext(); }} disabled={currentIdx === questions.length - 1 || isSliding || autoMoving}>다음 →</button>
     </div>
 
     <!-- 📍 문항 네비게이션 (상태별 색상 표시) -->
