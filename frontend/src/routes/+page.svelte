@@ -22,13 +22,12 @@
 
     // ── 화면 단계 및 데이터 ────────────────────────────────
     let phase         = $state('select'); // 현재 화면 단계
-    let sessions      = $state([]);       // 등록 아동 목록
+    let sessions      = $state([]);       // 등록 사용자 목록
     let questions     = $state([]);       // 문항 목록
     let options       = $state([]);       // 선택지 목록
-    let selectedSession = $state(null);     // 현재 검사 중인 아동
+    let selectedSession = $state(null);   // 현재 검사 중인 아동
     let answers       = $state({});       // 문항별 답변 {question_id: value}
     let result        = $state(null);     // 채점 결과
-    let startTime     = $state(null);     // 검사 시작 시각 (응답시간 계산용)
     let darkMode      = $state(false);    // 다크모드 여부
 
     // ── STT 관련 ───────────────────────────────────────────
@@ -48,7 +47,22 @@
     // ── TTS 관련 ───────────────────────────────────────────
     let ttsSpeed     = $state(1.0);  // TTS 재생 속도 (0.5 ~ 2.0)
     let currentAudio = $state(null); // 현재 재생 중인 Audio 객체
+    let isManuallyStopped = $state(false); //***/
+    let ttsTimer;
 
+    let isSpeaking = false;
+
+    async function speakSafe(text, q) {
+        if (isSpeaking && q?.manual) return;
+        isSpeaking = true;
+
+        try {
+            await speak(text, q);
+        } finally {
+            isSpeaking = false;
+        }
+    }
+    
     // ── 임시저장 ───────────────────────────────────────────
     let draftSavedAt  = $state(null); // 마지막 임시저장 시각
     let autoSaveTimer = $state(null); // 자동저장 타이머 (현재 미사용)
@@ -68,8 +82,6 @@
         questions.length > 0 && questions.every(q => answers[q.id] !== undefined)
     );
 
-    let isManuallyStopped = $state(false);
-
     // ── 다크모드 ───────────────────────────────────────────
     // darkMode 변경 시 body에 'dark' 클래스 추가/제거
     $effect(() => {
@@ -82,10 +94,11 @@
      * @param {string} text     - 읽을 텍스트
      * @param {object} question - 재생 후 자동 녹음 시작할 문항 (없으면 null)
      */
-    async function speak(text, question = null) {
+    async function speak(text, question = null, onEnd = null) {
         try {
             // 재생 중인 오디오 먼저 중지
             if (currentAudio) {
+                isManuallyStopped = true; //***/
                 currentAudio.pause();
                 currentAudio.currentTime = 0;
                 currentAudio = null;
@@ -94,14 +107,19 @@
             if (res && res.status === 'success') {
                 const audio = new Audio(`http://localhost:8000/api/tts/file/${res.filename}`);
                 audio.playbackRate = ttsSpeed;
+                
+                isManuallyStopped = false; //**새 재생 시작
+                
                 // TTS 재생 끝나면 자동으로 해당 문항 STT 녹음 시작
-                isManuallyStopped = false; // 새 재생 시작 시 초기화
                 audio.onended = async () => {
-                    if (isManuallyStopped) return; // 수동 정지면 자동 녹음 안함
+                    if (isManuallyStopped) return;
+
                     if (question) {
                         currentQuestion = question;
+                        currentAudio = null;    // *** 추가: TTS 재생 끝나면 아이콘 🔊로 복귀
                         await startRecording();
                     }
+                    if (onEnd) onEnd();
                 };
                 currentAudio = audio;
                 audio.play();
@@ -110,7 +128,16 @@
             console.log('TTS 오류:', e);
         }
     }
-
+    
+    //***/
+    function stopTTS() {
+        if (currentAudio) {
+            isManuallyStopped = true;
+            currentAudio.pause();
+            currentAudio.currentTime = 0;
+            currentAudio = null;
+        }
+    }
     // ── STT (음성 인식 녹음) ───────────────────────────────
     /**
      * 녹음 시작
@@ -134,7 +161,10 @@
             silenceTimer = setTimeout(async () => {
                 if (isRecording) {
                     recognition.stop();
-                    await speak('말씀해 주세요');
+                    speak('말씀해 주세요', null, async () => {
+                        // 🔥 TTS 끝난 뒤 자동 녹음
+                        await startRecording();
+                    });
                 }
             }, 5000);
         } catch(e) {
@@ -179,29 +209,13 @@
             currentAudio.currentTime = 0;
             currentAudio = null;
         }
+        speechSynthesis.cancel(); // 잔여 음성 제거
         if (isRecording && recognition) recognition.stop();
         isRecording  = false;
         isProcessing = false;
         clearTimeout(silenceTimer);
         clearTimeout(sttTimer);
-        silenceTimer = null;
-    }
-
-    // TTS만 정지 (STT는 유지)
-    function stopTTS() {
-        // tts 정지
-        if (currentAudio) {
-            isManuallyStopped = true;
-            currentAudio.pause();
-            currentAudio.currentTime = 0;
-            currentAudio = null;
-        }
-        // STT 정지
-        if (isRecording && recognition) {
-            clearTimeout(silenceTimer);
-            recognition.stop();
-            isRecording = false;
-        }
+        clearTimeout(ttsTimer);
     }
 
     // ── 카드 이동 ──────────────────────────────────────────
@@ -239,6 +253,35 @@
         slideDir = ''; isSliding = false; transcript = '';
     }
 
+    // 원하는 항목 이동
+    async function goToIndex(targetIdx) {
+    if (
+        targetIdx < 0 ||
+        targetIdx >= questions.length ||
+        targetIdx === currentIdx ||
+        isSliding
+    ) return;
+
+    stopAll();
+
+    // 방향 결정 (애니메이션용)
+    slideDir = targetIdx > currentIdx ? 'left' : 'right';
+    isSliding = true;
+
+    await new Promise(r => setTimeout(r, 350));
+
+    currentIdx = targetIdx;
+    currentQuestion = questions[currentIdx];
+
+    slideDir = '';
+    isSliding = false;
+    transcript = '';
+
+    //TTS 자동 실행
+    await speak(questions[currentIdx].text, questions[currentIdx]);
+}
+
+
     // ── 임시저장 ───────────────────────────────────────────
     /**
      * 현재까지의 답변을 서버 drafts.csv에 임시저장
@@ -261,29 +304,50 @@
      * 3. 첫 문항 TTS 재생
      */
     async function startChecklist() {
-        answers   = {}; result = null;
-        startTime = Date.now(); currentIdx = 0;
+        // 이전 TTS / 타이머 완전 정리
+        stopAll(); // speechSynthesis.cancel()
+        clearTimeout(ttsTimer);
+
+        // 상태 초기화
+        answers   = {}; 
+        result = null;
+        currentIdx = 0;
+        currentQuestion = null;
+        draftSavedAt = null;
+
+        // 체크리스트 진입
         phase     = 'checklist';
 
         // 이전 임시저장 데이터 복원
         const res = await loadDraft(selectedSession.id);
-        if (res.draft) {
-            res.draft.answers.forEach(a => { answers[a.question_id] = a.value; });
+        if (res && res.draft && res.draft.answers?.length > 0) {
+            res.draft.answers.forEach(a => { 
+                answers[a.question_id] = a.value; 
+            });
             draftSavedAt = res.draft.saved_at;
             // 마지막으로 답변한 문항으로 이동
             const lastAnswered = Math.max(...res.draft.answers.map(a => a.question_id));
             const idx = questions.findIndex(q => q.id === lastAnswered);
-            if (idx >= 0) currentIdx = idx;
+            
+            if (idx >= 0) {
+                currentIdx = idx + 1 < questions.length ? idx + 1 : idx;
+            }
         }
 
-        // 0.5초 후 첫 문항 TTS 자동 재생
-        setTimeout(async () => {
-            if (questions[currentIdx]) {
-                currentQuestion = questions[currentIdx];
-                await speak(questions[currentIdx].text, questions[currentIdx]);
-            }
+        // 첫 질문 세팅
+        currentQuestion = questions[currentIdx];
+
+        if (!currentQuestion) return;
+
+        // TTS 안전 실행 (setTimeout 제거)
+        await tick?.();
+
+        ttsTimer = setTimeout(() => {
+            speakSafe(currentQuestion.text, currentQuestion);
         }, 500);
     }
+
+       
 
     // ── 답변 제출 ──────────────────────────────────────────
     /**
@@ -299,8 +363,7 @@
             question_id: q.id,
             value: answers[q.id] ?? 0, // 미답변은 0으로 처리
         }));
-        const responseTime = (Date.now() - startTime) / 1000; // 전체 응답시간(초)
-        const res = await submitAnswers(selectedSession.id, answerList, responseTime);
+        const res = await submitAnswers(selectedSession.id, answerList);
         clearInterval(autoSaveTimer);
         await deleteDraft(selectedSession.id); // 임시저장 삭제
         result = res;
@@ -331,9 +394,9 @@
 
     // ── onMount: 초기 데이터 로드 + STT 초기화 ────────────
     onMount(async () => {
-        // 아동 목록 + 문항/선택지 불러오기
-        const childRes = await getSessions();
-        sessions = childRes.sessions;
+        // 사용자 목록 + 문항/선택지 불러오기
+        const sessionRes = await getSessions();
+        sessions = sessionRes.sessions;
         const qRes = await getQuestions();
         questions  = qRes.questions;
         options    = qRes.options;
@@ -395,12 +458,12 @@
     <!-- 관리자 로그인 모달 (showAdminModal=true일 때 표시) -->
     <AdminModal bind:showAdminModal onLogin={handleAdminLogin} />
 
-    <!-- 아동 선택 화면 -->
+    <!-- 사용자 선택 화면 -->
     {#if phase === 'select'}
         <SelectSession
             bind:sessions
             bind:darkMode
-            onSelect={(child) => { selectedSession = child; phase = 'consent'; }}
+            onSelect={(session) => { selectedSession = session; phase = 'consent'; }}
             onAdminClick={goToAdmin}
         />
 
@@ -415,9 +478,12 @@
     <!-- 체크리스트 화면 (카드형) -->
     {:else if phase === 'checklist'}
         <Checklist
-            {selectedSession}
+            {selectedSession} 
             {questions}
             {options}
+            {currentAudio} //***/
+            {speak}        //***/
+            {stopTTS}      //***/
             bind:answers
             bind:currentIdx
             bind:ttsSpeed
@@ -428,12 +494,10 @@
             {transcript}
             {unanswered}
             {allAnswered}
-            {currentAudio}
-            {speak}
-            {stopTTS}
-            onToggleRecording={(q) => toggleRecording(q)}
+            onToggleRecording={(q, isTTS) => isTTS ? speakQuestion(q) : toggleRecording(q)}
             onGoNext={goNext}
             onGoPrev={goPrev}
+            onGoToIndex={goToIndex}
             onSubmit={submit}
             onBack={() => { stopAll(); phase = 'select'; }}
             onSaveDraft={saveCurrentDraft}

@@ -1,7 +1,7 @@
 <!--
     Admin.svelte
     관리자 전체 응답 조회 화면 컴포넌트
-    - 응답 데이터 테이블 (response_id, 이름, 나이, 성별, 총점, 검사일시)
+    - 응답 데이터 테이블 (session_id, response_id, 이름, 나이, 성별, 총점, 검사일시)
     - 문항별 답변 펼치기/접기 (▼/▲)
     - 체크박스로 선택 후 일괄 삭제
     - 전체 선택/해제
@@ -84,8 +84,8 @@
                             />
                         </th>
                         <th style="text-align: center;">문항별<br>답변</th>
+                        <th>session_id</th>
                         <th>response_id</th>
-                        <th>child_id</th>
                         <th>이름</th>
                         <th>나이</th>
                         <th>성별</th>
@@ -109,8 +109,8 @@
                                     {expandedRows.has(row.response_id) ? '▲' : '▼'}
                                 </button>
                             </td>
+                            <td>{row.session_id}</td>
                             <td>{row.response_id}</td>
-                            <td>{row.child_id}</td>
                             <td>{row.name}</td>
                             <td>{row.age}</td>
                             <td>{row.gender}</td>

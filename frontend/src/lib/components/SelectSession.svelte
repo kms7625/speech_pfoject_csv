@@ -12,9 +12,9 @@
 
     // props: 아동 목록(양방향), 다크모드(양방향), 선택 콜백, 관리자 클릭 콜백
     let {
-        Sessionren      = $bindable([]),
+        sessions      = $bindable([]),
         darkMode      = $bindable(false),
-        onSelect,       // (Session) => void: 아동 선택 시 호출
+        onSelect,       // (session) => void: 아동 선택 시 호출
         onAdminClick    // () => void: 관리자 버튼 클릭 시 호출
     } = $props();
 
@@ -33,21 +33,21 @@
     async function addSession() {
         if (!newName || !newAge || !newGender) return;
         const res = await createSession(newName, parseInt(newAge), newGender);
-        Sessionren  = [...Sessionren, res.Session]; // 목록에 추가
+        sessions  = [...sessions, res.session]; // 목록에 추가
         // 입력 초기화
         newName = ''; newAge = ''; newGender = '';
     }
 
     // 아동 삭제: 백엔드에서 삭제 후 목록에서 제거
-    // Sessionren.py에서 drafts.csv 임시저장도 함께 삭제됨
-    async function removeSession(SessionId) {
-        await deleteSession(SessionId);
-        Sessionren = Sessionren.filter(c => c.id !== SessionId);
+    // sessionS.py에서 drafts.csv 임시저장도 함께 삭제됨
+    async function removeSession(sessionId) {
+        await deleteSession(sessionId);
+        sessions = sessions.filter(c => c.id !== sessionId);
     }
 </script>
 
 <div class="card">
-    <h1>🧠 ADHD 체크리스트</h1>
+    <h1>🧠 ADHD 자가진단 체크리스트</h1>
 
     <!-- 상단 우측: 다크모드 토글 + 관리자 버튼 -->
     <div style="display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: 16px;">
@@ -58,7 +58,7 @@
     </div>
 
     <!-- 아동 등록 섹션 -->
-    <h2>아동 등록</h2>
+    <h2>응답 대상자 등록</h2>
     <input bind:value={newName} placeholder="이름" type="text" />
     <input bind:value={newAge}  placeholder="나이" type="number" />
     <!-- 성별 선택 드롭다운 -->
@@ -70,28 +70,28 @@
     <button onclick={addSession}>등록</button>
 
     <!-- 아동 선택 섹션 -->
-    <h2>아동 선택</h2>
-    {#if Sessionren.length === 0}
-        <p>등록된 아동이 없습니다.</p>
+    <h2>대상자 선택</h2>
+    {#if sessions.length === 0}
+        <p>등록된 대상자가 없습니다.</p>
     {:else}
-        {#each Sessionren as Session}
+        {#each sessions as session}
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                <!-- 아동 선택 시 consent(개인정보 동의) 화면으로 이동 -->
+                <!-- 사용자 선택 시 consent(개인정보 동의) 화면으로 이동 -->
                 <button onclick={async () => {
-                    const res = await getLatestResponse(Session.id);
+                    const res = await getLatestResponse(session.id);
                     if (res.status === 'found') {
                         // 이전 검사 기록 있으면 팝업 표시
-                        historySession = Session;
+                        historySession = session;
                         historyData  = res.data;
                         showHistoryPopup = true;
                     } else {
                         // 없으면 바로 검사 시작
-                        onSelect(Session);
+                        onSelect(session);
                     }
                 }}>
-                    {Session.name} ({Session.age}세 / {Session.gender})
+                    {session.name} ({session.age}세 / {session.gender})
                 </button>
-                <button class="btn-danger" onclick={() => removeSession(Session.id)}>삭제</button>
+                <button class="btn-danger" onclick={() => removeSession(session.id)}>삭제</button>
             </div>
         {/each}
     {/if}

@@ -1,13 +1,11 @@
 // 백엔드 주소 - 모든 요청 여기로감
-const BASE = 'https://tweet-isolated-civil.ngrok-free.dev/api';
+const BASE = '/api';
 
 // 공통 요청 함수 - GET/POST 둘 다 여기서 처리
 async function request(method, path, body = null) {
     const options = {
         method,
-        headers: { 'Content-Type': 'application/json',
-                   'ngrok-skip-browser-warning': 'true', // ngrok 경고 페이지 스킵
-        },
+        headers: { 'Content-Type': 'application/json' },
     };
     if (body) {
         options.body = JSON.stringify(body);
@@ -20,24 +18,24 @@ async function request(method, path, body = null) {
     return data;
 }
 
-// 아동 관련
-export const getSessions = () => request('GET', '/children');
+// 사용자 관련
+export const getSessions = () => request('GET', '/sessions');
 export const createSession = (name, age, gender) =>
-    request('POST', '/children', { name, age, gender });
-// 특정 아동의 가장 최근 검사 결과 조회
+    request('POST', '/sessions', { name, age, gender });
+// 특정 사용자의 가장 최근 검사 결과 조회
 export async function getLatestResponse(sessionId) {
     return request('GET', `/score/latest/${sessionId}`);
 }
 // 삭제 관련
 export const deleteSession = (sessionId) =>
-    request('DELETE', `/children/${sessionId}`);
+    request('DELETE', `/sessions/${sessionId}`);
 
 // 문항 관련
 export const getQuestions = () => request('GET', '/questions');
 
 // 점수 관련
 export const submitAnswers = (session_id, answers, response_time) =>
-    request('POST', '/score/submit', { session_id: session_id, answers, response_time });
+    request('POST', '/score/submit', { session_id, answers, response_time });
 export const getHistory = (session_id) =>
     request('GET', `/score/history/${session_id}`);
 

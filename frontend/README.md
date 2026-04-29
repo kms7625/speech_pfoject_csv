@@ -1,8 +1,8 @@
 # 🧠 ADHD 체크리스트 웹 애플리케이션
 
-아동 ADHD 증상 선별 검사를 위한 음성 기반 웹 애플리케이션
+ ADHD 증상 자가진단을 위한 음성 기반 웹 애플리케이션
 
-TTS(음성 출력)랑 STT(음성 인식)를 활용해 문항 읽어주고 음성으로 답변을 받음
+TTS(음성 출력)와 STT(음성 인식)를 활용해 문항을 읽어주고 음성으로 답변을 받음
 
 ---
 
@@ -13,17 +13,17 @@ speech_project_csv/
 ├── backend/                        # FastAPI 백엔드
 │   ├── main.py                     # 앱 진입점, CORS 설정, 라우터 등록
 │   ├── routers/
-│   │   ├── children.py             # 아동 등록/삭제 API
+│   │   ├── sessions.py             # 사용자 등록/삭제 API
 │   │   ├── questions.py            # 문항/선택지 조회 API
 │   │   ├── score.py                # 답변 제출/채점/임시저장/관리자 API
 │   │   └── tts.py                  # TTS 음성 생성 API
 │   ├── services/
-│   │   ├── children_service.py     # 아동 데이터 CSV 처리
+│   │   ├── sessions_service.py     # 사용자 데이터 CSV 처리
 │   │   ├── questions_service.py    # 문항/선택지 데이터 정의
 │   │   ├── score_service.py        # 채점, 응답 저장, 임시저장 로직
 │   │   └── tts_service.py          # gTTS 음성 생성 및 캐싱
 │   ├── data/                       # CSV 데이터 파일 (gitignore)
-│   │   ├── children.csv            # 등록 아동 목록
+│   │   ├── sessions.csv            # 등록 아동 목록
 │   │   ├── responses.csv           # 검사 응답 결과
 │   │   └── drafts.csv              # 임시저장 데이터
 │   └── static/
@@ -38,7 +38,7 @@ speech_project_csv/
             ├── stores.js           # 공유 유틸리티 (사운드, 자모분리, STT 매칭)
             └── components/
                 ├── AdminModal.svelte   # 관리자 로그인 모달
-                ├── SelectChild.svelte  # 아동 선택/등록 화면
+                ├── SelectSession.svelte  # 사용자 선택/등록 화면
                 ├── Consent.svelte      # 개인정보 동의 화면
                 ├── Checklist.svelte    # 체크리스트 카드형 화면
                 ├── Admin.svelte        # 관리자 응답 조회 화면
@@ -49,13 +49,13 @@ speech_project_csv/
 
 ## ⚙️ 기술 스택
 
-| 구분 | 기술                           |
-|------|------------------------------|
-| 백엔드 | Python 3.12, FastAPI, gTTS   |
-| 프론트엔드 | SvelteKit, Svelte 5 (Runes)  |
-| 데이터 저장 | CSV 파일                       |
-| 음성 출력 (TTS) | gTTS (Google Text-to-Speech) |
-| 음성 인식 (STT) | Whisper (OpenAI, 로컬 실행)      |
+| 구분            | 기술                                      |
+| --------------- | ----------------------------------------- |
+| 백엔드          | Python 3.12, FastAPI, gTTS                |
+| 프론트엔드      | SvelteKit, Svelte 5 (Runes)               |
+| 데이터 저장     | CSV 파일                                  |
+| 음성 출력 (TTS) | gTTS (Google Text-to-Speech)              |
+| 음성 인식 (STT) | Web Speech API (브라우저 내장, 크롬 권장) |
 
 ---
 
@@ -88,11 +88,13 @@ npm run dev
 ## 📋 주요 기능
 
 ### 검사 흐름
+
 ```
-아동 선택 → 개인정보 동의 → 체크리스트 (20문항) → 결과 확인
+사용자 선택 → 개인정보 동의 → 체크리스트 (20문항) → 결과 확인
 ```
 
 ### 체크리스트 화면
+
 - 문항 카드형 UI (슬라이드 애니메이션)
 - TTS 자동 재생 (문항 음성 출력)
 - STT 자동 녹음 (TTS 재생 후 자동 시작)
@@ -102,12 +104,14 @@ npm run dev
 - 임시저장 (중단 후 이어하기 가능)
 
 ### STT 인식 방식
+
 - 브라우저 내장 Web Speech API 사용 (크롬 전용)
 - 한글 자모 분리 + 레벤슈타인 유사도 알고리즘으로 인식률 향상
 - 인식 키워드: 전혀/아니(0점), 약간/가끔(1점), 꽤/자주(2점), 매우/항상(3점)
 - 번호로도 답변 가능: 1번/2번/3번/4번
 
 ### 관리자 기능
+
 - 관리자 인증 (ID: admin / PW: admin1234)
 - 전체 응답 조회 테이블
 - 문항별 답변 펼치기/접기
@@ -119,53 +123,59 @@ npm run dev
 
 ### responses.csv 컬럼
 
-| 컬럼                | 설명 |
-|-------------------|------|
-| response_id       | 응답 고유 ID (UUID 앞 8자리) |
-| child_id          | 아동 ID |
-| name              | 아동 이름 (저장 시점 기록) |
-| age               | 아동 나이 (저장 시점 기록) |
-| gender            | 아동 성별 (저장 시점 기록) |
-| inattention(제외)   | 부주의 점수 (1~9번 문항 합산, 최대 27점) |
+| 컬럼                | 설명                                         |
+| ------------------- | -------------------------------------------- |
+| response_id         | 응답 고유 ID (UUID 앞 8자리)                 |
+| child_id            | 아동 ID                                      |
+| name                | 아동 이름 (저장 시점 기록)                   |
+| age                 | 아동 나이 (저장 시점 기록)                   |
+| gender              | 아동 성별 (저장 시점 기록)                   |
+| inattention(제외)   | 부주의 점수 (1~9번 문항 합산, 최대 27점)     |
 | hyperactivity(제외) | 과잉행동 점수 (10~18번 문항 합산, 최대 27점) |
-| total             | 총점 (최대 54점) |
-| response_time(제외) | 전체 응답 시간 (초) |
-| avg_rt(미구현)       | 문항당 평균 반응시간 (초) |
-| rt_std(미구현)       | 반응시간 표준편차 |
-| fast_ratio(미구현)   | 충동성 비율 (%) |
-| slow_ratio(미구현)   | 주의분산 비율 (%) |
-| recorded_at       | 검사 일시 |
-| q1 ~ q20          | 각 문항별 답변 (0~3) |
+| total               | 총점 (최대 54점)                             |
+| response_time(제외) | 전체 응답 시간 (초)                          |
+| avg_rt(미구현)      | 문항당 평균 반응시간 (초)                    |
+| rt_std(미구현)      | 반응시간 표준편차                            |
+| fast_ratio(미구현)  | 충동성 비율 (%)                              |
+| slow_ratio(미구현)  | 주의분산 비율 (%)                            |
+| recorded_at         | 검사 일시                                    |
+| q1 ~ q20            | 각 문항별 답변 (0~3)                         |
 
 ### 점수 해석
 
-| 점수 | 의미 |
-|------|------|
-| 0점 | 전혀 그렇지 않다 |
-| 1점 | 약간 그렇다 |
-| 2점 | 꽤 그렇다 |
-| 3점 | 매우 그렇다 |
+| 점수 | 의미             |
+| ---- | ---------------- |
+| 0점  | 전혀 그렇지 않다 |
+| 1점  | 약간 그렇다      |
+| 2점  | 꽤 그렇다        |
+| 3점  | 매우 그렇다      |
 
 ---
 
 ## 🔧 설정 변경 방법
 
 ### 관리자 계정 변경
+
 `frontend/src/lib/components/AdminModal.svelte`:
+
 ```js
 const ADMIN_ID       = 'admin';
 const ADMIN_PASSWORD = 'admin1234';
 ```
 
 ### STT 무음 대기 시간 변경
+
 `frontend/src/routes/+page.svelte`:
+
 ```js
 // 기본값 5000ms (5초)
 silenceTimer = setTimeout(async () => { ... }, 5000);
 ```
 
 ### STT 인식 키워드 추가/수정
+
 `frontend/src/lib/stores.js`:
+
 ```js
 const KEYWORDS = [
     { value: 0, keywords: ["전혀", "아니", "없", "1번", "하나", "일번"] },
@@ -176,7 +186,9 @@ const KEYWORDS = [
 ```
 
 ### TTS 재생 속도 기본값 변경
+
 `frontend/src/routes/+page.svelte`:
+
 ```js
 let ttsSpeed = $state(1.0); // 0.5 ~ 2.0
 ```
@@ -196,6 +208,7 @@ let ttsSpeed = $state(1.0); // 0.5 ~ 2.0
 ## 📦 설치 필요 패키지
 
 ### 백엔드 (requirements.txt)
+
 ```
 fastapi
 uvicorn
@@ -204,93 +217,7 @@ python-dotenv
 ```
 
 ### 프론트엔드
+
 ```bash
 npm install
 ```
-
-### 서버환경세팅(mac) 윈도우는 밑으로
-1. ngrok 설치
-```bash
-brew install ngrok
-```
-2. ngrok 계정 가입 후 인증
-```bash
-ngrok config add-authtoken 발급받은 토큰
-```
-3. 백엔드 실행
-```bash
-cd backend
-uvicorn main:app --reload --host 0.0.0.0
-```
-4. bgrok으로 백엔드 공개
-```bash
-ngrok http 8000
-```
-실행하고 터미널에 이런 주소 뜨면
-```bash
-Forwarding  https://abc123.ngrok-free.app → http://localhost:8000
-```
-5. api.js 주소 변경
-```bash
-const BASE = 'https://abc123.ngrok-free.app/api';
-```
-6. 프론트엔드 실행
-```bash
-cd frontend
-npm run dev -- --host
-
-터미널에 뜨는 Network: http://192.168.x.x:5173 주소로 외부에서 접속하면됨
-시연 끝나면 api.js 주소 다시 http://localhost:8000/api로 돌려놓으면됨
-```
-
-## 윈도우 서버환경세팅
-
-### 사전 준비
-- [ngrok 회원가입](https://ngrok.com) 후 Authtoken 발급
-- Python, Node.js 설치 확인
-
----
-
-### 1. ngrok 설치
-```bash
-winget install ngrok
-```
-
-### 2. ngrok 토큰 등록
-```bash
-ngrok config add-authtoken 발급받은토큰
-```
-
-### 3. 백엔드 실행
-```bash
-cd C:\Users\사용자명\PycharmProjects\speech_project_csv\backend
-.venv\Scripts\activate
-uvicorn main:app --reload --host 0.0.0.0
-```
-
-### 4. 새 터미널 열고 ngrok 실행
-```bash
-ngrok http 8000
-```
-터미널에 표시되는 `Forwarding` 주소 확인
-예시: `https://xxxx.ngrok-free.app`
-
-### 5. api.js 수정
-`frontend/src/lib/api.js` 파일에서:
-```js
-const BASE = 'https://xxxx.ngrok-free.app/api'; // ngrok 주소로 변경
-```
-
-### 6. 프론트엔드 실행
-```bash
-cd C:\Users\사용자명\PycharmProjects\speech_project_csv\frontend
-npm run dev -- --host
-```
-터미널에 표시되는 `Network: http://192.168.x.x:5173` 주소를 상대방에게 공유
-
----
-
-> ⚠️ 시연 종료 후 `api.js`를 원래대로 복구
-> ```js
-> const BASE = 'http://localhost:8000/api';
-> ```

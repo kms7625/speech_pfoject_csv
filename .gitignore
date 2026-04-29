@@ -4,6 +4,7 @@ __pycache__/
 .idea/
 .DS_Store
 
-backend/data/children.csv
+backend/data/sessions.csv
 backend/data/responses.csv
+backend/data/drafts.csv
 backend/uploads/

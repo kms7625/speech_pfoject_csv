@@ -8,7 +8,7 @@
 <script>
     // props: 선택된 아동 정보, 동의 완료 콜백, 취소 콜백
     let {
-        selectedChild, // { name, age, gender }
+        selectedSession, // { name, age, gender }
         onAgree,       // () => void: 동의 후 검사 시작
         onCancel       // () => void: 취소 → 아동 선택 화면으로 복귀
     } = $props();
@@ -22,8 +22,12 @@
 
     <!-- 선택된 아동 정보 표시 -->
     <p class="consent-name">
-        {selectedChild.name} ({selectedChild.age}세 / {selectedChild.gender})
+        {selectedSession.name} ({selectedSession.age}세 / {selectedSession.gender})
     </p>
+
+    <div class="consent-message">
+        <p> 본 설문은 자가 진단을 위한 참고용이며, 전문가의 진단을 대체할 수 없습니다.</p>
+    </div>
 
     <!-- 개인정보 수집 안내 박스 -->
     <div class="consent-box">
@@ -78,7 +82,7 @@ h2 { font-size: 1.6em; color: #3730a3; margin-bottom: 16px; }
     font-weight: 700; color: #1e293b;
     margin-top: 16px; margin-bottom: 4px;
 }
-.consent-title:first-child { margin-top: 0; }
+.consent-title:first-session { margin-top: 0; }
 /* 동의 체크박스 라벨 */
 .consent-check {
     display: flex; align-items: center; gap: 10px;

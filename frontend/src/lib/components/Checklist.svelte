@@ -13,12 +13,16 @@
 <script>
     // props: 부모(+page.svelte)에서 전달받는 데이터와 콜백
     let {
-        selectedChild,           // 현재 검사 중인 아동 정보
+        selectedSession,           // 현재 검사 중인 아동 정보
         questions,               // 전체 문항 배열
+        currentAudio,           //***/
+        speak,                  //***/
+        stopTTS,                //***/
         options,                 // 선택지 배열 [{value, text}, ...]
         answers      = $bindable({}),    // 각 문항 답변 {question_id: value}
         currentIdx   = $bindable(0),     // 현재 보고 있는 문항 인덱스 (0~19)
         ttsSpeed     = $bindable(1.0),   // TTS 재생 속도
+        isSpeaking   = $bindable(false),
         isRecording,             // 현재 녹음 중 여부
         isSliding    = $bindable(false), // 슬라이드 애니메이션 중 여부
         slideDir     = $bindable(''),    // 슬라이드 방향 ('left' | 'right' | '')
@@ -26,20 +30,30 @@
         transcript,              // STT 인식 결과 텍스트
         unanswered,              // 미답변 문항 id 배열
         allAnswered,             // 모든 문항 답변 여부
-        currentAudio,            // 현재 재생 중인 오디오 객체
-        speak,                   // TTS 재생 함수
-        stopTTS,                 // TTS 정지 함수
         onToggleRecording,       // (question, isTTS) => void: 마이크/스피커 버튼
         onGoNext,                // () => void: 다음 문항으로 이동
         onGoPrev,                // () => void: 이전 문항으로 이동
         onSubmit,                // () => void: 제출
         onBack,                  // () => void: 돌아가기 (TTS/STT 중지 후 select 화면으로)
-        onSaveDraft,             // () => void: 임시저장
+        onSaveDraft,              // () => void: 임시저장
+        onGoToIndex
     } = $props();
+    
+    // 🔹 id → index 빠르게 찾기 (성능 최적화)
+    let questionIndexMap = $derived(
+        Object.fromEntries(questions.map((q, i) => [q.id, i]))
+    );
+
+    // 🔹 문항 상태 판단 (색상용)
+    function getQuestionState(qid) {
+        if (questions[currentIdx]?.id === qid) return 'current';
+        if (answers[qid] !== undefined) return 'answered';
+        return 'unanswered';
+    }
 </script>
 
 <div class="card">
-    <h2>{selectedChild.name} 검사</h2>
+    <h2>{selectedSession.name} 검사</h2>
 
     <!-- 진행률 바 + 문항 번호 -->
     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
@@ -74,9 +88,9 @@
                     <!-- isTTS=true: TTS 재생만, STT 자동 시작 포함 -->
                     <button onclick={() => {
                         if (currentAudio) {
-                            stopTTS();
+                            stopTTS(); // 🔴 정지
                         } else {
-                            speak(questions[currentIdx].text, questions[currentIdx]);
+                            speak(questions[currentIdx].text, questions[currentIdx]); // 🟢 재생
                         }
                     }}>
                         {currentAudio ? '⏹️' : '🔊'}
@@ -94,13 +108,19 @@
                                 checked={answers[questions[currentIdx].id] === opt.value}
                                 onclick={async () => {
                                     const qid = questions[currentIdx].id;
+
                                     // 이미 선택된 항목 클릭 시 선택 해제
                                     if (answers[qid] === Number(opt.value)) {
                                         answers[qid] = undefined;
+                                        return;     // 해제 시에는 이동 안 함
                                     } else {
                                         answers[qid] = Number(opt.value);
                                     }
                                     await onSaveDraft(); // 선택 즉시 임시저장
+
+                                    // 자동 다음 이동
+                                    await new Promise(r => setTimeout(r, 1000))
+                                    await onGoNext();
                                 }}
                             />
                             {opt.text}
@@ -134,15 +154,25 @@
         <button onclick={onGoNext} disabled={currentIdx === questions.length - 1 || isSliding}>다음 →</button>
     </div>
 
-    <!-- 미답변 문항 번호 안내 -->
-    {#if unanswered.length > 0}
-        <p style="color: #94a3b8; font-size: 0.85em; margin-top: 12px; text-align: center;">
-            미답변: {unanswered.join(', ')}번
-        </p>
-    {/if}
+    <!-- 📍 문항 네비게이션 (상태별 색상 표시) -->
+    <div style="margin-top: 16px; text-align: center;">
+        <span style="font-size: 0.85em; color: #94a3b8;">문항:</span>
+
+        {#each questions as q}
+            <button
+                class="q-btn {getQuestionState(q.id)}"
+                onclick={() => {
+                    const idx = questionIndexMap[q.id];
+                    if (idx !== undefined) onGoToIndex?.(idx);
+                }}
+            >
+                {q.id}
+            </button>
+        {/each}
+    </div>
 
     <div style="display: flex; gap: 12px; margin-top: 16px;">
-        <!-- 돌아가기: TTS/STT 중지 후 아동 선택 화면으로 -->
+        <!-- 돌아가기: TTS/STT 중지 후 사용자 선택 화면으로 -->
         <button onclick={onBack}>돌아가기</button>
         <!-- 제출: 모든 문항 답변 완료 시에만 활성화 -->
         <button onclick={onSubmit} disabled={!allAnswered}>제출</button>
@@ -231,12 +261,41 @@ button:active { transform: translateY(0); }
 button:disabled { background: #e2e8f0; color: #94a3b8; transform: none; cursor: not-allowed; }
 p { color: #475569; }
 
-/* tts/stt 정지버튼 */
-
-.btn-stop {
-    padding: 8px 16px; font-size: 0.85em;
-    background: #f59e0b; color: #fff;
-    border-radius: 12px;
+/* 🔢 문항 네비게이션 버튼 */
+.q-btn {
+    margin: 4px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
 }
-.btn-stop:hover { background: #d97706; }
+
+/* 🔵 현재 문항 */
+.q-btn.current {
+    background-color: #3b82f6;
+    color: white;
+    font-weight: bold;
+}
+
+/* ⚪ 답변 완료 */
+.q-btn.answered {
+    background-color: #e5e7eb;
+    color: #374151;
+}
+
+/* 🔴 미답변 */
+.q-btn.unanswered {
+    background-color: #fee2e2;
+    color: #dc2626;
+}
+
+/* hover 효과 */
+.q-btn:hover {
+    transform: scale(1.1);
+}
+
 </style>
