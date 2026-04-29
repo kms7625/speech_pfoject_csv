@@ -7,7 +7,7 @@
     - 다크모드 body 클래스 관리
 -->
 <script>
-    import { onMount }    from 'svelte';
+    import { onMount, tick }    from 'svelte';
     import { getSessions, getQuestions, submitAnswers, generateTTS,
              saveDraft, loadDraft, deleteDraft } from '$lib/api.js';
     import { findBestMatch, playSound } from '$lib/stores.js';

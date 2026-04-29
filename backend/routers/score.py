@@ -15,13 +15,12 @@ class Answer(BaseModel):
 
 # 요청 전체 형태: 아동ID + 답변20개
 class ScoreRequest(BaseModel):
-    child_id: str
+    session_id: str
     answers: list[Answer]
-    response_time: float
 
 # 임시저장할 데이터 형태
 class DraftRequest(BaseModel):
-    child_id: str
+    session_id: str
     answers: list[Answer]  # 지금까지 답변한 것만
 
 # 일괄 삭제 요청 형태
@@ -46,32 +45,27 @@ def submit_answers(body: ScoreRequest):
             }
 
     scores = calc_score(body.answers)
-    response_id = save_response(body.child_id,
+    response_id = save_response(body.session_id,
                                 scores,
-                                body.response_time,
                                 body.answers)
 
     return {
         "status": "success",
         "response_id": response_id,
-        "scores": {
-            "inattention":   scores['inattention'],
-            "hyperactivity": scores['hyperactivity'],
-            "total":         scores['total']
-        }
+        "scores": {"total": scores['total']}
     }
 
-# 특정 아동의 과거 검사 결과 전체 조회
-@router.get("/history/{child_id}")
-def get_child_history(child_id: str):
+# 특정 사용자의 과거 검사 결과 전체 조회
+@router.get("/history/{session_id}")
+def get_session_history(session_id: str):
    return {"status": "success",
-           "history": get_history(child_id)}
+           "history": get_history(session_id)}
 
-@router.get("/latest/{child_id}")
-def get_latest(child_id: str):
-    """특정 아동의 가장 최근 검사 결과 반환"""
+@router.get("/latest/{session_id}")
+def get_latest(session_id: str):
+    """특정 사용자의 가장 최근 검사 결과 반환"""
     from services.score_service import get_latest_response
-    data = get_latest_response(child_id)
+    data = get_latest_response(session_id)
     if not data:
         return {"status": "none"}
     return {"status": "found", "data": data}
@@ -92,18 +86,18 @@ def delete_selected(body: DeleteRequest):
 # 임시저장
 @router.post("/draft/save")
 def draft_save(body: DraftRequest):
-    saved_at = save_draft(body.child_id, body.answers)
+    saved_at = save_draft(body.session_id, body.answers)
     return {"status": "success",
            "saved_at": saved_at}
 
 # 임시저장 불러오기
-@router.get("/draft/{child_id}")
-def draft_load(child_id: str):
-    draft = load_draft(child_id)
+@router.get("/draft/{session_id}")
+def draft_load(session_id: str):
+    draft = load_draft(session_id)
     return {"status": "success", "draft": draft}
 
 # 임시저장 삭제 (제출 완료 후 호출)
-@router.delete("/draft/{child_id}")
-def draft_delete(child_id: str):
-    delete_draft(child_id)
+@router.delete("/draft/{session_id}")
+def draft_delete(session_id: str):
+    delete_draft(session_id)
     return {"status": "success"}
