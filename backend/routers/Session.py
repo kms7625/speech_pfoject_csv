@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from pydantic import BaseModel
-from services.children_service import get_all, add_child, remove_child
+from services.Session_service import get_all, add_child, remove_child
 
 router = APIRouter(prefix="/api/children")
 

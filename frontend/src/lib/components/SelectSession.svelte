@@ -1,5 +1,5 @@
 <!--
-    SelectChild.svelte
+    SelectSession.svelte
     아동 선택 화면 컴포넌트
     - 아동 등록 (이름/나이/성별 입력)
     - 아동 목록 표시 및 선택
@@ -8,20 +8,20 @@
     - 관리자 버튼
 -->
 <script>
-    import { createChild, deleteChild, getLatestResponse } from '$lib/api.js';
+    import { createSession, deleteSession, getLatestResponse } from '$lib/api.js';
 
     // props: 아동 목록(양방향), 다크모드(양방향), 선택 콜백, 관리자 클릭 콜백
     let {
-        children      = $bindable([]),
+        Sessionren      = $bindable([]),
         darkMode      = $bindable(false),
-        onSelect,       // (child) => void: 아동 선택 시 호출
+        onSelect,       // (Session) => void: 아동 선택 시 호출
         onAdminClick    // () => void: 관리자 버튼 클릭 시 호출
     } = $props();
 
     // 이전 검사 결과 팝업 관련
     let showHistoryPopup = $state(false); // 팝업 표시 여부
     let historyData      = $state(null);  // 최근 검사 결과 데이터
-    let historyChild     = $state(null);  // 팝업 대상 아동
+    let historySession     = $state(null);  // 팝업 대상 아동
 
 
     // 아동 등록 입력 상태
@@ -30,19 +30,19 @@
     let newGender = $state('');
 
     // 아동 등록: 이름/나이/성별 모두 입력했을 때만 실행
-    async function addChild() {
+    async function addSession() {
         if (!newName || !newAge || !newGender) return;
-        const res = await createChild(newName, parseInt(newAge), newGender);
-        children  = [...children, res.child]; // 목록에 추가
+        const res = await createSession(newName, parseInt(newAge), newGender);
+        Sessionren  = [...Sessionren, res.Session]; // 목록에 추가
         // 입력 초기화
         newName = ''; newAge = ''; newGender = '';
     }
 
     // 아동 삭제: 백엔드에서 삭제 후 목록에서 제거
-    // children.py에서 drafts.csv 임시저장도 함께 삭제됨
-    async function removeChild(childId) {
-        await deleteChild(childId);
-        children = children.filter(c => c.id !== childId);
+    // Sessionren.py에서 drafts.csv 임시저장도 함께 삭제됨
+    async function removeSession(SessionId) {
+        await deleteSession(SessionId);
+        Sessionren = Sessionren.filter(c => c.id !== SessionId);
     }
 </script>
 
@@ -67,31 +67,31 @@
         <option value="남">남</option>
         <option value="여">여</option>
     </select>
-    <button onclick={addChild}>등록</button>
+    <button onclick={addSession}>등록</button>
 
     <!-- 아동 선택 섹션 -->
     <h2>아동 선택</h2>
-    {#if children.length === 0}
+    {#if Sessionren.length === 0}
         <p>등록된 아동이 없습니다.</p>
     {:else}
-        {#each children as child}
+        {#each Sessionren as Session}
             <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                 <!-- 아동 선택 시 consent(개인정보 동의) 화면으로 이동 -->
                 <button onclick={async () => {
-                    const res = await getLatestResponse(child.id);
+                    const res = await getLatestResponse(Session.id);
                     if (res.status === 'found') {
                         // 이전 검사 기록 있으면 팝업 표시
-                        historyChild = child;
+                        historySession = Session;
                         historyData  = res.data;
                         showHistoryPopup = true;
                     } else {
                         // 없으면 바로 검사 시작
-                        onSelect(child);
+                        onSelect(Session);
                     }
                 }}>
-                    {child.name} ({child.age}세 / {child.gender})
+                    {Session.name} ({Session.age}세 / {Session.gender})
                 </button>
-                <button class="btn-danger" onclick={() => removeChild(child.id)}>삭제</button>
+                <button class="btn-danger" onclick={() => removeSession(Session.id)}>삭제</button>
             </div>
         {/each}
     {/if}
@@ -109,14 +109,14 @@
                 onkeydown={(e) => e.stopPropagation()}>
 
                 <h3>📋 이전 검사 기록</h3>
-                <p class="popup-name">{historyChild.name} ({historyChild.age}세 / {historyChild.gender})</p>
+                <p class="popup-name">{historySession.name} ({historySession.age}세 / {historySession.gender})</p>
 
                 <div class="popup-score">{historyData.total}<span style="font-size:0.4em; color:#475569;">점</span></div>
                 <p class="popup-date">검사일시: {historyData.recorded_at}</p>
 
                 <div style="display: flex; gap: 12px; margin-top: 24px; justify-content: center;">
                     <button class="btn-outline" onclick={() => showHistoryPopup = false}>닫기</button>
-                    <button onclick={() => { showHistoryPopup = false; onSelect(historyChild); }}>
+                    <button onclick={() => { showHistoryPopup = false; onSelect(historySession); }}>
                         재검사
                     </button>
                 </div>

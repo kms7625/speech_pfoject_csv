@@ -8,13 +8,13 @@
 -->
 <script>
     import { onMount }    from 'svelte';
-    import { getChildren, getQuestions, submitAnswers, generateTTS,
+    import { getsessions, getQuestions, submitAnswers, generateTTS,
              saveDraft, loadDraft, deleteDraft } from '$lib/api.js';
     import { findBestMatch, playSound } from '$lib/stores.js';
 
     // 컴포넌트 import
     import AdminModal  from '$lib/components/AdminModal.svelte';
-    import SelectChild from '$lib/components/SelectChild.svelte';
+    import SelectSession from '$lib/components/SelectSession.svelte';
     import Consent     from '$lib/components/Consent.svelte';
     import Checklist   from '$lib/components/Checklist.svelte';
     import Admin       from '$lib/components/Admin.svelte';
@@ -22,10 +22,10 @@
 
     // ── 화면 단계 및 데이터 ────────────────────────────────
     let phase         = $state('select'); // 현재 화면 단계
-    let children      = $state([]);       // 등록 아동 목록
+    let sessions      = $state([]);       // 등록 아동 목록
     let questions     = $state([]);       // 문항 목록
     let options       = $state([]);       // 선택지 목록
-    let selectedChild = $state(null);     // 현재 검사 중인 아동
+    let selectedSession = $state(null);     // 현재 검사 중인 아동
     let answers       = $state({});       // 문항별 답변 {question_id: value}
     let result        = $state(null);     // 채점 결과
     let startTime     = $state(null);     // 검사 시작 시각 (응답시간 계산용)
@@ -249,7 +249,7 @@
             .filter(([, val]) => val !== undefined)
             .map(([qid, val]) => ({ question_id: parseInt(qid), value: val }));
         if (answerList.length === 0) return;
-        const res = await saveDraft(selectedChild.id, answerList);
+        const res = await saveDraft(selectedSession.id, answerList);
         if (res.status === 'success') draftSavedAt = res.saved_at;
     }
 
@@ -266,7 +266,7 @@
         phase     = 'checklist';
 
         // 이전 임시저장 데이터 복원
-        const res = await loadDraft(selectedChild.id);
+        const res = await loadDraft(selectedSession.id);
         if (res.draft) {
             res.draft.answers.forEach(a => { answers[a.question_id] = a.value; });
             draftSavedAt = res.draft.saved_at;
@@ -300,9 +300,9 @@
             value: answers[q.id] ?? 0, // 미답변은 0으로 처리
         }));
         const responseTime = (Date.now() - startTime) / 1000; // 전체 응답시간(초)
-        const res = await submitAnswers(selectedChild.id, answerList, responseTime);
+        const res = await submitAnswers(selectedSession.id, answerList, responseTime);
         clearInterval(autoSaveTimer);
-        await deleteDraft(selectedChild.id); // 임시저장 삭제
+        await deleteDraft(selectedSession.id); // 임시저장 삭제
         result = res;
         phase  = 'result';
     }
@@ -318,7 +318,7 @@
     }
 
     /**
-     * 관리자 버튼 클릭 (SelectChild에서 호출)
+     * 관리자 버튼 클릭 (SelectSession에서 호출)
      * 이미 로그인했으면 바로 이동, 아니면 모달 표시
      */
     async function goToAdmin() {
@@ -332,8 +332,8 @@
     // ── onMount: 초기 데이터 로드 + STT 초기화 ────────────
     onMount(async () => {
         // 아동 목록 + 문항/선택지 불러오기
-        const childRes = await getChildren();
-        children = childRes.children;
+        const childRes = await getsessions();
+        sessions = childRes.sessions;
         const qRes = await getQuestions();
         questions  = qRes.questions;
         options    = qRes.options;
@@ -397,17 +397,17 @@
 
     <!-- 아동 선택 화면 -->
     {#if phase === 'select'}
-        <SelectChild
-            bind:children
+        <SelectSession
+            bind:sessions
             bind:darkMode
-            onSelect={(child) => { selectedChild = child; phase = 'consent'; }}
+            onSelect={(child) => { selectedSession = child; phase = 'consent'; }}
             onAdminClick={goToAdmin}
         />
 
     <!-- 개인정보 동의 화면 -->
     {:else if phase === 'consent'}
         <Consent
-            {selectedChild}
+            {selectedSession}
             onAgree={startChecklist}
             onCancel={() => phase = 'select'}
         />
@@ -415,7 +415,7 @@
     <!-- 체크리스트 화면 (카드형) -->
     {:else if phase === 'checklist'}
         <Checklist
-            {selectedChild}
+            {selectedSession}
             {questions}
             {options}
             bind:answers

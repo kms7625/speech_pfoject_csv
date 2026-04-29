@@ -36,10 +36,10 @@ export const deleteChild = (childId) =>
 export const getQuestions = () => request('GET', '/questions');
 
 // 점수 관련
-export const submitAnswers = (child_id, answers, response_time) =>
-    request('POST', '/score/submit', { child_id, answers, response_time });
-export const getHistory = (child_id) =>
-    request('GET', `/score/history/${child_id}`);
+export const submitAnswers = (session_id, answers, response_time) =>
+    request('POST', '/score/submit', { session_id: session_id, answers, response_time });
+export const getHistory = (session_id) =>
+    request('GET', `/score/history/${session_id}`);
 
 // TTS 관련
 export const generateTTS = (text, speed = 1.0) =>
@@ -48,16 +48,16 @@ export const generateTTS = (text, speed = 1.0) =>
         { text, speed });
 
 // 임시저장
-export const saveDraft = (child_id, answers) =>
-    request('POST', '/score/draft/save', { child_id, answers });
+export const saveDraft = (session_id, answers) =>
+    request('POST', '/score/draft/save', { session_id, answers });
 
 // 불러오기
-export const loadDraft = (child_id) =>
-    request('GET', `/score/draft/${child_id}`);
+export const loadDraft = (session_id) =>
+    request('GET', `/score/draft/${session_id}`);
 
 // 삭제
-export const deleteDraft = (child_id) =>
-    request('DELETE', `/score/draft/${child_id}`);
+export const deleteDraft = (session_id) =>
+    request('DELETE', `/score/draft/${session_id}`);
 
 // 관리자 전체 조회
 export const getAllResponses = () =>
