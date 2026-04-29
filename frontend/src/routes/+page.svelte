@@ -8,7 +8,7 @@
 -->
 <script>
     import { onMount }    from 'svelte';
-    import { getsessions, getQuestions, submitAnswers, generateTTS,
+    import { getSessions, getQuestions, submitAnswers, generateTTS,
              saveDraft, loadDraft, deleteDraft } from '$lib/api.js';
     import { findBestMatch, playSound } from '$lib/stores.js';
 
@@ -332,7 +332,7 @@
     // ── onMount: 초기 데이터 로드 + STT 초기화 ────────────
     onMount(async () => {
         // 아동 목록 + 문항/선택지 불러오기
-        const childRes = await getsessions();
+        const childRes = await getSessions();
         sessions = childRes.sessions;
         const qRes = await getQuestions();
         questions  = qRes.questions;

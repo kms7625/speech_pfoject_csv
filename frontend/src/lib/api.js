@@ -21,16 +21,16 @@ async function request(method, path, body = null) {
 }
 
 // 아동 관련
-export const getChildren = () => request('GET', '/children');
-export const createChild = (name, age, gender) =>
+export const getSessions = () => request('GET', '/children');
+export const createSession = (name, age, gender) =>
     request('POST', '/children', { name, age, gender });
 // 특정 아동의 가장 최근 검사 결과 조회
-export async function getLatestResponse(childId) {
-    return request('GET', `/score/latest/${childId}`);
+export async function getLatestResponse(sessionId) {
+    return request('GET', `/score/latest/${sessionId}`);
 }
 // 삭제 관련
-export const deleteChild = (childId) =>
-    request('DELETE', `/children/${childId}`);
+export const deleteSession = (sessionId) =>
+    request('DELETE', `/children/${sessionId}`);
 
 // 문항 관련
 export const getQuestions = () => request('GET', '/questions');
