@@ -432,7 +432,9 @@
 
                     // 1.5초 후 다음 문항으로 자동 이동
                     if (currentIdx < questions.length - 1) {
-                        setTimeout(async () => { await goNext(); }, 1500);
+                        setTimeout(async () => {
+                            if (answers[q.id] !== undefined) await goNext();
+                        }, 1500);
                     }
                 } else {
                     // 인식 실패: 재시도 안내

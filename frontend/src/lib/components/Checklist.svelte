@@ -118,9 +118,9 @@
                                     }
                                     await onSaveDraft(); // 선택 즉시 임시저장
 
-                                    // 자동 다음 이동
+                                    // 자동 다음 이동 (STT 녹음 중이면 이동 안함 - 중복 이동 방지)
                                     await new Promise(r => setTimeout(r, 1000))
-                                    await onGoNext();
+                                    if (!isRecording) await onGoNext();
                                 }}
                             />
                             {opt.text}
