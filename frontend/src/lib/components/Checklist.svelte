@@ -89,7 +89,8 @@
                 <p style="margin-bottom: 16px;">
                     {questions[currentIdx].id}. {questions[currentIdx].text}
                     <!-- isTTS=true: TTS 재생만, STT 자동 시작 포함 -->
-                    <button onclick={() => {
+                    <button class="speaker-btn {!currentAudio && currentIdx === 0 ? 'pulse-hint' : ''}"
+                            onclick={() => {
                         if (currentAudio) {
                             stopTTS(); // 🔴 정지
                         } else {
@@ -98,6 +99,12 @@
                     }}>
                         {currentAudio ? '⏹️' : '🔊'}
                     </button>
+                    <!-- 첫 문항 안내 문구 - 버튼 밖에 위치 -->
+                    {#if currentIdx === 0 && !currentAudio}
+                        <p style="font-size: 0.8em; color: #6366f1; text-align: center; margin-top: 4px; margin-bottom: 0;">
+                            🔊 버튼을 눌러 문항을 들어보세요. 2번째 문항부터는 자동으로 재생됩니다.
+                        </p>
+                    {/if}
                 </p>
 
                 <!-- 선택지 4개 (2열 그리드) -->
@@ -301,6 +308,30 @@ p { color: #475569; }
 /* hover 효과 */
 .q-btn:hover {
     transform: scale(1.1);
+}
+
+/* 스피커 버튼 힌트 애니메이션 */
+.speaker-btn {
+    background: none;
+    border: none;
+    font-size: 1.2em;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 8px;
+    transition: transform .1s;
+    margin: 0;
+    box-shadow: none;
+}
+.speaker-btn:hover { transform: scale(1.2); box-shadow: none; }
+
+.pulse-hint {
+    animation: speakerPulse 1.5s infinite;
+}
+
+@keyframes speakerPulse {
+    0%   { transform: scale(1);    filter: drop-shadow(0 0 0px #6366f1); }
+    50%  { transform: scale(1.2);  filter: drop-shadow(0 0 8px #6366f1); }
+    100% { transform: scale(1);    filter: drop-shadow(0 0 0px #6366f1); }
 }
 
 </style>
