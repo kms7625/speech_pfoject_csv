@@ -129,10 +129,13 @@
                                     await onSaveDraft(); // 선택 즉시 임시저장
 
                                     // 자동 다음 이동 (STT 녹음 중이면 이동 안함 - 중복 이동 방지)
-                                    autoMoving = true;
-                                    await new Promise(r => setTimeout(r, 1000))
-                                    if (!isRecording) await onGoNext();
-                                    autoMoving = false;
+                                    // 마지막 문항이거나 모든 문항 답변 완료 시 자동 이동 안함
+                                    if (currentIdx < questions.length -1 && !allAnswered) {
+                                        autoMoving = true;
+                                        await new Promise(r => setTimeout(r, 1000));
+                                        if (!isRecording) await onGoNext();
+                                        autoMoving = false;
+                                    }
                                 }}
                             />
                             {opt.text}
