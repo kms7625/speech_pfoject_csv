@@ -2,7 +2,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers import questions # backend/routers/questions.py
-from routers import Session # bachend/routers/Session.py
+from routers import sessions # bachend/routers/Session.py
 from routers import score # bachend/routers/score.py
 from routers import tts
 from fastapi.staticfiles import StaticFiles # 정적 파일 서빙 추가
@@ -22,7 +22,7 @@ app.add_middleware(
 )
 
 app.include_router(questions.router) # backend/routers/questions.py
-app.include_router(Session.router) # bachend/routers/Session.py
+app.include_router(sessions.router) # bachend/routers/Session.py
 app.include_router(score.router) # bachend/routers/score.py
 app.include_router(tts.router)
 
