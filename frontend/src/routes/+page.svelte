@@ -245,6 +245,7 @@
         currentIdx = nextIdx;
         currentQuestion = questions[currentIdx];
         slideDir = ''; isSliding = false; transcript = '';
+        // tts 자동재생
         await speak(questions[currentIdx].text, questions[currentIdx]);
     }
 
@@ -288,8 +289,10 @@
     isSliding = false;
     transcript = '';
 
-    //TTS 자동 실행
-    await speak(questions[currentIdx].text, questions[currentIdx]);
+    // 이미 답변된 문항이면 tts 자동 재생 안함
+    if (answers[questions[currentIdx].id] === undefined) {
+        await speak(questions[currentIdx].text, questions[currentIdx]);
+    }
 }
 
 
