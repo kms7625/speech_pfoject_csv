@@ -229,9 +229,20 @@
     async function goNext() {
         if (currentIdx >= questions.length - 1 || isSliding) return;
         stopAll();
+
+        // 현재 문항이 미답변이면 다음 미답변 문항으로 이동
+        // 현재 문항이 답변된거면 그냥 다음 문항으로 이동
+        let nextIdx = currentIdx +1;
+        if (answers[questions[currentIdx].id] !== undefined) {
+            // 답변된 상태에서 다음 누르면 다음 미답변 문항으로 이동
+            const nextUnanswered = questions.findIndex(
+                (q, i) => i > currentIdx && answers[q.id] === undefined
+            );
+            if (nextUnanswered !== -1) nextIdx = nextUnanswered;
+        }
         isSliding = true; slideDir = 'left';
         await new Promise(r => setTimeout(r, 350)); // 애니메이션 대기
-        currentIdx++;
+        currentIdx = nextIdx;
         currentQuestion = questions[currentIdx];
         slideDir = ''; isSliding = false; transcript = '';
         await speak(questions[currentIdx].text, questions[currentIdx]);
@@ -434,7 +445,7 @@
                         }, 1500);
                     }
                 } else {
-                    // 인식 실패: 재시도 안내
+                    // 인식 실패 재시도 안내
                     speak('다시 한번 말씀해 주세요');
                 }
             };
@@ -480,9 +491,9 @@
             {selectedSession} 
             {questions}
             {options}
-            {currentAudio} //***/
-            {speak}        //***/
-            {stopTTS}      //***/
+            {currentAudio}
+            {speak}
+            {stopTTS}
             bind:answers
             bind:currentIdx
             bind:ttsSpeed
