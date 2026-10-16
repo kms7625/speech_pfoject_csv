@@ -16,18 +16,18 @@ speech_project_csv/
 │   │   ├── sessions.py             # 사용자 등록/삭제 API
 │   │   ├── questions.py            # 문항/선택지 조회 API
 │   │   ├── score.py                # 답변 제출/채점/임시저장/관리자 API
-│   │   └── tts.py                  # TTS 음성 생성 API
+│   │   └── tts.py                  # TTS 음성 생성 API (edge-tts)
 │   ├── services/
 │   │   ├── sessions_service.py     # 사용자 데이터 CSV 처리
 │   │   ├── questions_service.py    # 문항/선택지 데이터 정의
 │   │   ├── score_service.py        # 채점, 응답 저장, 임시저장 로직
-│   │   └── tts_service.py          # gTTS 음성 생성 및 캐싱
+│   │   └── tts_service.py          # edge-tts 음성 생성 및 캐싱
 │   ├── data/                       # CSV 데이터 파일 (gitignore)
 │   │   ├── sessions.csv            # 등록 아동 목록
 │   │   ├── responses.csv           # 검사 응답 결과
 │   │   └── drafts.csv              # 임시저장 데이터
 │   └── static/
-│       └── tts/                    # TTS 캐시 파일 (gitignore)
+│       └── tts/                    # TTS 캐시 mp3 (샘플 5개 커밋됨)
 │
 └── frontend/                       # SvelteKit 프론트엔드
     └── src/
@@ -51,10 +51,10 @@ speech_project_csv/
 
 | 구분            | 기술                                      |
 | --------------- | ----------------------------------------- |
-| 백엔드          | Python 3.12, FastAPI, gTTS                |
+| 백엔드          | Python 3.12, FastAPI, edge-tts                |
 | 프론트엔드      | SvelteKit, Svelte 5 (Runes)               |
 | 데이터 저장     | CSV 파일                                  |
-| 음성 출력 (TTS) | gTTS (Google Text-to-Speech)              |
+| 음성 출력 (TTS) | edge-tts (Microsoft Edge 음성, `ko-KR-SunHiNeural`)              |
 | 음성 인식 (STT) | Web Speech API (브라우저 내장, 크롬 권장) |
 
 ---
@@ -67,7 +67,7 @@ speech_project_csv/
 cd backend
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+pip install fastapi uvicorn edge-tts   # requirements.txt는 저장소에 없음
 uvicorn main:app --reload
 ```
 
@@ -96,7 +96,11 @@ npm run dev
 ### 체크리스트 화면
 
 - 문항 카드형 UI (슬라이드 애니메이션)
-- TTS 자동 재생 (문항 음성 출력)
+- TTS 재생 — 첫 문항은 🔊 버튼으로 듣고, 2번째 문항부터 자동 재생
+- 이미 답변한 문항으로 돌아가면 TTS 자동 재생 안 함
+- '다음' 클릭 시 미답변 문항으로 이동, 미답변 문항 번호 표시
+- 마지막 문항이거나 모든 문항에 답하면 자동 이동하지 않음
+- TTS 재생 속도 슬라이더 (0.5x ~ 2.0x)
 - STT 자동 녹음 (TTS 재생 후 자동 시작)
 - 음성 인식 성공 시 다음 문항 자동 이동
 - 수동 선택지 클릭도 가능
@@ -107,15 +111,28 @@ npm run dev
 
 - 브라우저 내장 Web Speech API 사용 (크롬 전용)
 - 한글 자모 분리 + 레벤슈타인 유사도 알고리즘으로 인식률 향상
-- 인식 키워드: 전혀/아니(0점), 약간/가끔(1점), 꽤/자주(2점), 매우/항상(3점)
+- 인식 키워드: 전혀/아니(0점), 약간/가끔(1점), 꽤/자주(2점), 매우/항상(3점) — 전체 목록은 아래 '설정 변경 방법'
 - 번호로도 답변 가능: 1번/2번/3번/4번
 
 ### 관리자 기능
 
-- 관리자 인증 (ID: admin / PW: admin1234)
+- 관리자 인증 (ID: admin / PW: admin1234 — 프론트엔드에 하드코딩된 데모용 계정)
 - 전체 응답 조회 테이블
 - 문항별 답변 펼치기/접기
 - 체크박스 선택 후 일괄 삭제
+
+---
+
+## 🔌 API (FastAPI)
+
+| 그룹 | 엔드포인트 |
+|---|---|
+| 사용자 | `GET /api/sessions` · `POST /api/sessions` · `DELETE /api/sessions/{session_id}` |
+| 문항 | `GET /api/questions` · `GET /api/questions/{question_id}` |
+| 채점 | `POST /api/score/submit` · `GET /api/score/history/{session_id}` · `GET /api/score/latest/{session_id}` |
+| 임시저장 | `POST /api/score/draft/save` · `GET /api/score/draft/{session_id}` · `DELETE /api/score/draft/{session_id}` |
+| 관리자 | `GET /api/score/admin/all` · `DELETE /api/score/admin/delete` |
+| TTS | `POST /api/tts/generate` · `GET /api/tts/file/{filename}` |
 
 ---
 
@@ -126,20 +143,15 @@ npm run dev
 | 컬럼                | 설명                                         |
 | ------------------- | -------------------------------------------- |
 | response_id         | 응답 고유 ID (UUID 앞 8자리)                 |
-| child_id            | 아동 ID                                      |
+| session_id          | 사용자(아동) ID                              |
 | name                | 아동 이름 (저장 시점 기록)                   |
 | age                 | 아동 나이 (저장 시점 기록)                   |
 | gender              | 아동 성별 (저장 시점 기록)                   |
-| inattention(제외)   | 부주의 점수 (1~9번 문항 합산, 최대 27점)     |
-| hyperactivity(제외) | 과잉행동 점수 (10~18번 문항 합산, 최대 27점) |
-| total               | 총점 (최대 54점)                             |
-| response_time(제외) | 전체 응답 시간 (초)                          |
-| avg_rt(미구현)      | 문항당 평균 반응시간 (초)                    |
-| rt_std(미구현)      | 반응시간 표준편차                            |
-| fast_ratio(미구현)  | 충동성 비율 (%)                              |
-| slow_ratio(미구현)  | 주의분산 비율 (%)                            |
+| total               | 총점 (20문항 × 0~3점, 최대 60점)             |
 | recorded_at         | 검사 일시                                    |
 | q1 ~ q20            | 각 문항별 답변 (0~3)                         |
+
+> 부주의·과잉행동 하위 점수, 반응시간 지표(평균·표준편차·충동성/주의분산 비율)는 아직 구현되지 않았습니다.
 
 ### 점수 해석
 
@@ -178,10 +190,10 @@ silenceTimer = setTimeout(async () => { ... }, 5000);
 
 ```js
 const KEYWORDS = [
-    { value: 0, keywords: ["전혀", "아니", "없", "1번", "하나", "일번"] },
-    { value: 1, keywords: ["약간", "조금", "가끔", "2번", "둘", "이번"] },
-    { value: 2, keywords: ["꽤", "종종", "자주", "많", "3번", "셋", "삼번"] },
-    { value: 3, keywords: ["매우", "항상", "심", "굉장", "4번", "넷", "사번", "매일"] }
+    { value: 0, keywords: ["전혀", "아니", "없", "1번", "하나", "일번", "일", "그렇지 않다"] },
+    { value: 1, keywords: ["약간", "조금", "가끔", "2번", "둘", "이번", "이"] },
+    { value: 2, keywords: ["꽤", "종종", "자주", "많", "3번", "셋", "삼번", "깨", "삼"] },
+    { value: 3, keywords: ["매우", "항상", "심", "굉장", "4번", "넷", "사번", "매일", "사"] }
 ];
 ```
 
@@ -201,19 +213,21 @@ let ttsSpeed = $state(1.0); // 0.5 ~ 2.0
 - 백엔드와 프론트엔드 **둘 다 실행** 필요
 - `data/` 폴더의 CSV 파일은 gitignore 처리됨 → 처음 실행 시 자동 생성
 - responses.csv 구조 변경 시 기존 파일 삭제 후 재생성 필요
-- TTS 캐시 파일은 `backend/static/tts/`에 저장됨
+- TTS 캐시 파일은 `backend/static/tts/`에 저장됨 (텍스트·속도 해시로 파일명 생성, 이미 있으면 재생성 안 함). gitignore 대상이 아니라 샘플 mp3 5개가 커밋되어 있음
+- CORS가 모든 출처(`allow_origins=["*"]`)를 허용하도록 설정되어 있음
 
 ---
 
 ## 📦 설치 필요 패키지
 
-### 백엔드 (requirements.txt)
+### 백엔드
+
+`requirements.txt` 파일은 저장소에 없습니다. 코드에서 사용하는 패키지:
 
 ```
 fastapi
 uvicorn
-gtts
-python-dotenv
+edge-tts
 ```
 
 ### 프론트엔드
